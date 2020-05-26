@@ -1,4 +1,4 @@
-**Note.** This is very much a work in progress.  It hasn't been tested with particularly diverse inputs, and requires a fair few more unit tests, etc.
+**Note.** This is very much a work in progress.  It hasn't been tested with particularly diverse inputs, and requires a fair few more unit tests, etc.  
 
 ## Overview
 
@@ -7,8 +7,141 @@
 * provide a programmatic interface for running X13-ARIMA-SEATS
 * provide a stateless microservice that can be used to run X13-ARIMA-SEATS remotely
 
-The programmatic interface provides an abstraction that may make it easier to use X13-ARIMA-SEATS in production pipelines and other workflows since there is no explicit use of the command line, for example, and specifications can be built entirely programmatically, that is to say without the need for external `mta` or `spc` files.  Similarly for the microservice&ndash;in this case, any tool with an HTTP module can 
-use the service, the only input required being a single JSON file.
+The programmatic interface provides an abstraction that _may_ make it easier to use X13-ARIMA-SEATS in production pipelines and other workflows since there is no explicit use of the command line or filesystem, for example, and specifications can be built entirely programmatically.  Similarly for the microservice&ndash;in this case, any tool with an HTTP module can use the service, the only input required being a single JSON file.  The library was mainly written to support the creation of a JVM-based web service, however, which allows one to do web-based things like the following:
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
+<script src="https://code.highcharts.com/highcharts.src.js"></script>
+<div id=app></div>
+<script>
+Vue.component('snzseasadjchart', {
+  props: {
+    name: {required: true},
+    code: { required: true }
+  },
+  data: function() {
+    return {
+      tsdata: {}
+    }
+  },
+  mounted() {
+    this.$_update(this.code);
+  },
+  watch: {
+    code() {
+      this.$_update(this.code);
+    },
+    tsdata() {
+      Highcharts.chart(this.name, {
+        title: {
+          text: this.tsdata.title,
+          useHTML: true
+        },
+        yAxis: {
+          title: {
+            text: this.tsdata.units
+          }
+        },
+        xAxis: {
+          categories: this.tsdata.period
+        },
+        series: [
+          {
+            name: "unadjusted",
+            data: this.tsdata.ori
+          },
+          {
+            name: "seasonally adjusted",
+            data: this.tsdata.sa
+          },
+          {
+            name: "trend",
+            data: this.tsdata.trn
+          }
+        ],
+        chart: {
+          type: 'line',
+          zoomType: 'xy',
+          height: null
+        },
+        plotOptions: {
+          series: {
+            allowPointSelect: true,
+            marker: {
+              enabled: false
+            }
+          }
+        },
+        credits: {
+          enabled: true,
+          href: "https://www.stats.govt.nz/large-datasets/csv-files-for-download/",
+          text: "Stats NZ"
+        }
+      });
+    }
+  },
+  methods: {
+    $_update(seriesCode) {
+      let context = this;
+      axios
+        .get(`https://cmhh.hopto.org/snzts/v1/series?format=json&seriesCode=${this.code}`)
+        .then(response => {
+          let actual = response.data[0];
+          let title = actual.outcomes.join(", ");
+          let start = actual.period[0];
+          let data = actual.value.toString();
+          let period = 12 / actual.interval;
+          let units = actual.units;
+          let magnitude = actual.magnitude;
+          let request = 
+            `{"x":{"series":{"title":"${title}","start":"${start}",` +
+            `"period":${period},"data":[${data}]},"x11":null}}`;
+          axios
+            .post("https://cmhh.hopto.org/seasadj/adjust?save=ori,sa,trn", request)
+            .then(response => {
+              let res = response.data.x;
+              context.tsdata = {
+                title:title,
+                units:units,
+                magnitude:magnitude,
+                period:res.series.ori.date,
+                ori:res.series.ori.value,
+                sa:res.series.sa.value,
+                trn:res.series.trn.value
+              };
+            });
+        });
+    }
+  },
+  template: `<div class="snztschart" v-bind:id="name"></div>`
+});
+</script>
+<script>
+let app = new Vue({
+  el: '#app',
+  data() {
+    return {
+      code: "HLFQ.SAA3AZ"
+    }
+  },
+  template:`
+    <div>
+      <label for="cars">Choose a series:</label>
+      <select v-model="code">
+        <option value="HLFQ.SAA3AZ" selected>total employed</option>
+        <option value="HLFQ.SAB3AZ">total unemployed</option>
+        <option value="HLFQ.SAC3AZ">not in labour force</option>
+        <option value="HLFQ.SAE3AZ">labour force participation rate</option>
+        <option value="HLFQ.SAH3AZ">employment rate</option>
+        <option value="HLFQ.SAF3AZ">unemployment rate</option>
+        <option value="HLFQ.SAD3AZ">working-age population</option>
+      </select>
+      <hr>
+      <snzseasadjchart v-bind:code="code" name=ts02></snzseasadjchart>
+    </div>
+  `
+});
+</script>
 
 Of course, there are other incidental benefits provided here.  Specifically, being written in Scala, it is relatively easy to run adjustments concurrently, so large batch adjustments can be run faster.  Of course, under the hood X13-ARIMA-SEATS makes heavy use of physical files, so this is somewhat dependent on disk contention.
 
