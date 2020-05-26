@@ -230,7 +230,13 @@ case object Specifications {
         else if (h == '{' & !inside)
           parse(t, level + 1, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff, accum)
         else if (h == '}' & !inside) {
-          if (level == 1 | level == 2)
+          if (valbuff == "null"){
+            parse(
+              t, level - 1, ndquote, nsquote, numbracket, name, "", "", 
+              Map[String, String](), "", accum :+ (name, spec, specbuff)
+            )
+          }
+          else if (level == 1 | level == 2)
             parse(
               t, level - 1, ndquote, nsquote, numbracket, "", "", "",
               Map[String, String](), "",
