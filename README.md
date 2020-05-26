@@ -1,17 +1,3 @@
-<style>
-pre.sourceCode {
-  border: 1px solid black;
-  padding: 5px;
-  margin-bottom: -1px;
-  background-color: #eeeeee;
-}
-
-div.sourceCode:after {
-  content: attr(data-caption);
-  font-weight: bold;
-}
-</style>
-
 **Note.** This is very much a work in progress.  It hasn't been tested with particularly diverse inputs, and requires a fair few more unit tests, etc.
 
 ## Overview
