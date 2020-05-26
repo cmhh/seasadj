@@ -1,0 +1,15 @@
+logs
+target
+.idea
+.idea_modules
+.classpath
+.project
+.settings
+/RUNNING_PID
+examples
+fort.16
+**/.access^
+**/.attribute^
+**/*.jar
+*.json
+*attach*
