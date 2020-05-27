@@ -13,7 +13,7 @@ Of course, there are other incidental benefits provided here.  Specifically, bei
 
 ## Installation
 
-The library is supplied as an sbt project.  To build a so-called fat jar, simply enter the project directory and run:
+The library is supplied as an [sbt](https://www.scala-sbt.org/) project.  To build a so-called fat jar, simply enter the project directory and run:
 
 ```bash
 sbt assembly
