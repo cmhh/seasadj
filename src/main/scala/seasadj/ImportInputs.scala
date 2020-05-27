@@ -39,7 +39,10 @@ object ImportInputs extends App {
       val specs: IndexedSeq[Specification] = spc.map(f => {
         val name = f.getName.split('.')(0)
         Specification.fromFile(name, f) match {
-          case Success(s) => resolveFiles(s, files)
+          case Success(s) => s.resolveFiles(files) match {
+            case Success(t) => t
+            case Failure(e) => sys.error(s"Could not resolve all files for ${f.getName}.")            
+          }
           case Failure(e) => sys.error(s"Failed to import ${f.getName}.")
         }
       }).toVector
@@ -61,10 +64,12 @@ object ImportInputs extends App {
           file match {
             case None => sys.error(s"No spc file matching '${line}' found.")
             case Some(f) => {
-              val spec = Specification.fromFile(line, f)
-              spec match {
-                case Failure(e) => sys.error(e.getMessage)
-                case Success(s) => resolveFiles(s, files)
+              Specification.fromFile(line, f) match {
+                case Success(s) => s.resolveFiles(files) match {
+                  case Success(t) => t
+                  case Failure(e) => sys.error(s"Could not resolve all files for ${f.getName}.")
+                }
+                case Failure(e) => sys.error(s"Failed to import ${f.getName}.")
               }
             }
           }
@@ -80,32 +85,6 @@ object ImportInputs extends App {
         println(s"Created ${outpath.getAbsolutePath}/$name.json.") // create logger and make this level INFO
         println()
       })
-
     } 
-  }
-
-  def resolveFiles(s: Specification, files: IndexedSeq[File]): Specification = {
-    def resolve(x: List[(String, String, SpecValue)], accum: Specification): Specification = x match {
-      case Nil => accum
-      case h::t => {
-        val matchedFile = matchFile(h._3.toString, files, true) match {
-          case Some(f: File) => f
-          case _ => sys.error(s"Could not find match for ${h._3}.")
-        }
-        val data = TimeSeries.fromFile(matchedFile, 0).toSpecValue
-        val res1 = accum
-          .setParameter(data._1, "data", h._1)
-          .removeParameter("file", h._1)
-        val res2 = 
-          if (h._1 == "series" & !res1.containsParameter("start", h._1)) 
-            res1.setParameter(data._2, "start", h._1)
-          else res1
-        val res3 = 
-          if (res2.containsParameter("format", h._1)) res2.removeParameter("format", h._1)
-          else res2
-        resolve(t, res3)
-      }
-    }
-    resolve(s.getAllParameter("file").toList, s)
   }
 }

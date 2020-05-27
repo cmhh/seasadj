@@ -13,7 +13,7 @@ Of course, there are other incidental benefits provided here.  Specifically, bei
 
 ## Installation
 
-The library is suppied as an sbt project.  To build a so-called fat jar, simply enter the project directory and run:
+The library is supplied as an sbt project.  To build a so-called fat jar, simply enter the project directory and run:
 
 ```bash
 sbt assembly
@@ -51,18 +51,18 @@ series{
   title="International Airline Passengers Data from Box and Jenkins"
   start=1949.01
   data=(
-	112 118 132 129 121 135 148 148 136 119 104 118
-	115 126 141 135 125 149 170 170 158 133 114 140
-	145 150 178 163 172 178 199 199 184 162 146 166
-	171 180 193 181 183 218 230 242 209 191 172 194
-	196 196 236 235 229 243 264 272 237 211 180 201
-	204 188 235 227 234 264 302 293 259 229 203 229
-	242 233 267 269 270 315 364 347 312 274 237 278
-	284 277 317 313 318 374 413 405 355 306 271 306
-	315 301 356 348 355 422 465 467 404 347 305 336
-	340 318 362 348 363 435 491 505 404 359 310 337
-	360 342 406 396 420 472 548 559 463 407 362 405
-	417 391 419 461 472 535 622 606 508 461 390 432)
+    112 118 132 129 121 135 148 148 136 119 104 118
+    115 126 141 135 125 149 170 170 158 133 114 140
+    145 150 178 163 172 178 199 199 184 162 146 166
+    171 180 193 181 183 218 230 242 209 191 172 194
+    196 196 236 235 229 243 264 272 237 211 180 201
+    204 188 235 227 234 264 302 293 259 229 203 229
+    242 233 267 269 270 315 364 347 312 274 237 278
+    284 277 317 313 318 374 413 405 355 306 271 306
+    315 301 356 348 355 422 465 467 404 347 305 336
+    340 318 362 348 363 435 491 505 404 359 310 337
+    360 342 406 396 420 472 548 559 463 407 362 405
+    417 391 419 461 472 535 622 606 508 461 390 432)
   span=(1952.01, )
 }
 
@@ -103,7 +103,7 @@ or, if we want to redirect the outputs:
 x13ashtml -i testairline -o o/testairline
 ```
 
-A metafile with extension `mta` can also be used to control input and output locations for an arbitrary number of input series.  In this case,in addition to the specification file we could create a metafile, `airline.mta`, as follows:
+A metafile with extension `mta` can also be used to control input and output locations for an arbitrary number of input series.  In this case, in addition to the specification file we could create a metafile, `airline.mta`, as follows:
 
 ~~~{#airlinemta .bash caption="testairline.mta"}
 <path>/testairline <path>/o/testairline
@@ -115,7 +115,7 @@ and we could then run the adjustment as follows:
 x13ashtml -m testairline -s
 ```
 
-Program output typically spans a number of individual files, saved in the same folder as the specification, or to a chosen output folder as indicated in the examples above.  The `-s` flag results in a file containing a range of summary measures and diagnostics being saved with a `udg` or `xdg` extension, depending whether an `X11` or `SEATS` adjustment specification is used.  The first few lines of the resulting `udg` file in this case look as follows:
+Program output typically spans a number of individual files, saved in the same folder as the specification, or to a chosen output folder as indicated in the example above (the second entry on each line of a `mta` file).  The `-s` flag results in a file containing a range of summary measures and diagnostics being saved with a `udg` or `xdg` extension, depending whether an `X11` or `SEATS` adjustment specification is used.  The first few lines of the resulting `udg` file in this case look as follows:
 
 ~~~{#airlineudg caption="testairline.udg"}
 date: Apr 17, 2020  
@@ -174,9 +174,9 @@ series{
 x11{}
 ```
 
-Internally, the whole specification is modelled as a single class called `Specification`.  A `Specification` in turn is a data class consisting of a name and then nested maps containing the individual gropus of paramaters.  In the case above, the name might be something like `airpassengers`, and the map member would contain the keys `series` and `x11`.  The value for `series` would be another map containing keys `title`, `start`, `data`, and `span`.  The value for `x11` would simply be an empty mapping.
+Internally, the whole specification is modelled as a single class called `Specification`.  A `Specification` in turn is a data class consisting of a name and then nested maps containing the individual groups of paramaters.  In the case above, the name might be something like `airpassengers`, and the map member would contain the keys `series` and `x11`.  The value for `series` would be another map containing keys `title`, `start`, `data`, and `span`.  The value for `x11` would simply be an empty mapping.
 
-The values themselves are all descended from an abstract class called `SpecValue`.  For example, in `start=1949.01`, `1949.01` is imported with type `SpecDate`.  Similarly, the right-hand side of the `data` argument is imported with type `SpecNumArray`, and `span` is imported with type `SpecSpan`.  Only certain types are permitted for certain parameters, and there is _some_ checking of correctness when constructing a `Specification`. 
+The values themselves are all descended from an abstract class called `SpecValue`.  For example, in `start=1949.01`, `1949.01` is imported with type `SpecDate`.  Similarly, the right-hand side of the `data` argument is imported with type `SpecNumArray`, and `span` is imported with type `SpecSpan`.  Only certain types are permitted for certain parameters, and there is _some_ checking of correctness when constructing a `Specification`.  The validation is probably a little clumsy in its design, and is not complete.
 
 Multiple specifications can be collected together to enable batch adjustments.  This is modelled as a single class called `Specifications` containing a single member, `specifications`, which is just a sequence of objects of type `Specification`.
 
@@ -246,7 +246,7 @@ Finally, to run this in such a way that the total employed series, `emp`, is adj
 <path to spc>/emp  <path to output>/emp
 ~~~
 
-For no other reason than it is common and convenient, we will create a service that accepts a single JSON string as input, and returns output as JSON also.  Of course, we can express an adjustment in this format without any loss of functionality, and we hope that the example given is general enough to convince us this is true.  At any rate, it should be clear that the following JSON representation is sufficient to represent the stated setup:
+For no other reason than JSON is seemingly near-universal in its use in web services, we create a service that accepts a single JSON string as input, and returns output as JSON also.  Of course, we can express an adjustment in this format without any loss of functionality, and we hope that the example given is general enough to convince us this is true.  At any rate, it should be clear that the following JSON representation is sufficient to represent the stated setup:
 
 ```json
 {
@@ -463,7 +463,7 @@ val s1 = Specification("foo")
 val s2 = s1.setParameter("a title", "title", "series")
 ```
 
-Parameters themselves are generally of a `SpecValue` type.  The method `setParameter` will accept a string input and then construct the appropriate type as required.  For example, we set the value of `span` in the `series` spec above as follows:
+Parameters themselves are generally descended from the `SpecValue` abstract class.  The method `setParameter` will accept a string input and then construct the appropriate type as required.  For example, we set the value of `span` in the `series` spec above as follows:
 
 ```scala
 ap.setParameter("(1952.01,)", "span", "series")
