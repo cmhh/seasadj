@@ -294,6 +294,92 @@ case class Specification(name: String, specs: Specs) extends JSONOutput {
    * array.
    */
   def toJSON: String = toJSON(false)
+
+  /**
+   * Return new [[Specification]] with no external file dependencies.
+   *
+   * References to files in the input specification are matched up with a list
+   * of files, and the content of each file is placed directly in the
+   * specification, and the reference to the file removed.
+   
+   * @param root a folder to recursively search for candidate files 
+   */
+  def resolveFiles(root: File): Try[Specification] = {
+    val files = FileUtils.listFiles(root, List("^.+(/o){1}$"))
+    def resolve(x: List[(String, String, SpecValue)], accum: Specification): Specification = x match {
+      case Nil => accum
+      case h::t => {
+        val matchedFile = FileUtils.matchFile(h._3.toString, files, true) match {
+          case Some(f: File) => f
+          case _ => sys.error(s"Could not find match for ${h._3}.")
+        }
+        val data = TimeSeries.fromFile(matchedFile, 0).toSpecValue
+        val res1 = accum
+          .setParameter(data._1, "data", h._1)
+          .removeParameter("file", h._1)
+        val res2 = 
+          if (h._1 == "series" & !res1.containsParameter("start", h._1)) 
+            res1.setParameter(data._2, "start", h._1)
+          else res1
+        val res3 = 
+          if (res2.containsParameter("format", h._1)) res2.removeParameter("format", h._1)
+          else res2
+        resolve(t, res3)
+      }
+    }
+
+    Try {
+      resolve(this.getAllParameter("file").toList, this)
+    }
+  }
+
+  /**
+   * Return new [[Specification]] with no external file dependencies.
+   *
+   * References to files in the input specification are matched up with a list
+   * of files, and the content of each file is placed directly in the
+   * specification, and the reference to the file removed.
+   
+   * @param root a folder to recursively search for candidate files 
+   */
+  def resolveFiles(root: String): Try[Specification] = resolveFiles(new File(root))
+
+  /**
+   * Return new [[Specification]] with no external file dependencies.
+   *
+   * References to files in the input specification are matched up with a list
+   * of files, and the content of each file is placed directly in the
+   * specification, and the reference to the file removed.
+   
+   * @param files a collection of candidate files 
+   */
+  def resolveFiles(files: IndexedSeq[File]): Try[Specification] = {
+    def resolve(x: List[(String, String, SpecValue)], accum: Specification): Specification = x match {
+      case Nil => accum
+      case h::t => {
+        val matchedFile = FileUtils.matchFile(h._3.toString, files, true) match {
+          case Some(f: File) => f
+          case _ => sys.error(s"Could not find match for ${h._3}.")
+        }
+        val data = TimeSeries.fromFile(matchedFile, 0).toSpecValue
+        val res1 = accum
+          .setParameter(data._1, "data", h._1)
+          .removeParameter("file", h._1)
+        val res2 = 
+          if (h._1 == "series" & !res1.containsParameter("start", h._1)) 
+            res1.setParameter(data._2, "start", h._1)
+          else res1
+        val res3 = 
+          if (res2.containsParameter("format", h._1)) res2.removeParameter("format", h._1)
+          else res2
+        resolve(t, res3)
+      }
+    }
+
+    Try {
+      resolve(this.getAllParameter("file").toList, this)
+    }
+  }
 }
 
 /**
@@ -439,16 +525,4 @@ case object Specification {
       Map("series" -> seriesSpec, "seats" -> Map[String,SpecValue]())
     )
   }
-
-  /**
-   * Return new [[Specification]] with no external file dependencies.
-   *
-   * References to files in the input specification are matched up with a list
-   * of files, and the content of each file is placed directly in the
-   * specification, and the reference to the file removed.
-   *
-   * @param specification the input specification
-   * @param files list of files 
-   */
-  def resolveData(specification: Specification, files: List[File]): Specification = ???
 }
