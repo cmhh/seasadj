@@ -2,6 +2,14 @@ package org.cmhh.seasadj
 
 case class Adjustments(adjustments: IndexedSeq[Adjustment]) extends JSONOutput {
   /**
+   * Subset [[Adjustments]].
+   *
+   * @param f mapping from [[Adjustment]] to [[Boolean]]
+   */
+  def filter(f: Adjustment => Boolean): Adjustments = 
+    Adjustments(adjustments.filter(f))
+
+  /**
    * Convert to JSON string.
    *
    * @param allDates whether to include dates in full for time series outputs, or just start and frequency

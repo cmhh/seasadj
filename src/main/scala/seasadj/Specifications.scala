@@ -22,6 +22,35 @@ case class Specifications(specifications: IndexedSeq[Specification]) extends JSO
 
   lazy val size = specifications.size
 
+  /**
+   * Combine [[Specifications]].
+   *
+   * @param that [[Specifications]]
+   */
+  def ++(that: Specifications): Specifications = 
+    Specifications(specifications ++ that.specifications)
+
+  /**
+   * Add [[Specification]] to [[Specifications]].
+   *
+   * @param that [[Specification]]
+   */
+  def :+(that: Specification): Specifications = 
+    Specifications(specifications :+ that)
+
+  /**
+   * Subset [[Specifications]].
+   *
+   * @param f mapping from [[Specification]] to [[Boolean]]
+   */
+  def filter(f: Specification => Boolean): Specifications = 
+    Specifications(specifications.filter(f))
+
+  /**
+   * Select [[Specification]] by name.
+   *
+   * @param name name of [[Specification]]
+   */
   def apply(name: String): Option[Specification] = {
     val s = specifications.filter(_.name == name) 
     if (s.size == 0) None
