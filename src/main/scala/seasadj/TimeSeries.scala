@@ -8,7 +8,8 @@ import java.io.File
  * @param frequency integer&ndash;one of 1, 4, or 12
  */
 case class Frequency(frequency: Int){
-  require(List(1,4,12).contains(frequency))
+  require(List(1,4,12).contains(frequency), s"Invalid frequency ($frequency).")
+  override def toString = frequency.toString
 }
 
 /**
@@ -33,6 +34,11 @@ case class TimeSeries(data: IndexedSeq[Option[Double]], start: Date, frequency: 
   lazy val years: IndexedSeq[Int] = dates.map(_.year)
   lazy val periods: IndexedSeq[Int] = dates.map(_.period)
 
+  /**
+   * Apply a function to each value in time series.
+   *
+   * @param f mapping from [[Double]] to [[Double]]
+   */
   def map(f: Double => Double): TimeSeries = 
     TimeSeries(
       data.map(x => x match {
@@ -72,14 +78,28 @@ case class TimeSeries(data: IndexedSeq[Option[Double]], start: Date, frequency: 
     hdr + "\n" + lines
   }
 
-  def toJSON: String = {
+  /**
+   * Output JSON string.
+   *
+   * @param allDates if false, just output start date and frequency
+   */
+  def toJSON(allDates: Boolean): String = {
     val d = dates.map(x => s""""$x"""")
     val v = data.map(x => x match {
       case Some(x) => x.toString
       case None => ""
     })
-    s"""{"date":[${d.mkString(",")}],"value":[${v.mkString(",")}]}"""
+
+    if (allDates) 
+      s"""{"date":[${d.mkString(",")}],"value":[${v.mkString(",")}]}"""
+    else
+      s"""{"start":"${start.toString}","period":${frequency.frequency},"value":[${v.mkString(",")}]}"""
   }
+
+  /**
+   * Output JSON string,
+   */
+  def toJSON: String = toJSON(true)
 
   /**
    * Return specification values.

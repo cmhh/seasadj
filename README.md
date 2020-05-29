@@ -308,10 +308,16 @@ To start the seasonal adjustment service, simply run:
 java -cp seasadj.jar org.cmhh.seasadj.Service
 ```
 
-The service will then be accessible at `localhost:9001`.  The service consists of a single route `/adjust`.  The method is POST, of course, and a valid JSON string is expected as the message body.  Optionally, a query parameter, `save`, can be attached containing a comma-delimited string comprising the set of time series outputs one wishes to retain.  For example, if running an X11 adjustment, and one wishes to retain just the seasonally adjusted and trend outputs, one would use the following:
+The service will then be accessible at `localhost:9001`.  The service consists of a single route `/seasadj/adjust`.  The method is POST, of course, and a valid JSON string is expected as the message body.  
+
+Optionally, a query parameter, `save`, can be attached containing a comma-delimited string comprising the set of time series outputs one wishes to retain.  
+
+Also optionally, a Boolean query parameter, `allDates`, can be added which controls how dates for time series output are handled.  If set to `true` (the default), then time series outputs will consist of an array containing a sequence of dates, and an array containing the time series values.  If set to `false`, then the time series outputs will consist of a single array containing the time series values, as well as the start date and time series frequency as scalars.  The latter option will reduce the size of output by about one third in practice, so might be useful.  However, users will need to construct the full sequence of dates for themselves if the data is to be plotted, say.  
+
+For example, if running an X11 adjustment, and one wishes to retain just the seasonally adjusted and trend outputs, and include just the starting date for each component (rather than an array of dates), one would use the following:
 
 ```
-/adjust?save=sa,trn
+/adjust?save=sa,trn&allDates=false
 ```
 
 By way of a simple example, consider the following JSON input:
@@ -333,6 +339,58 @@ By way of a simple example, consider the following JSON input:
     },
     "x11": null
   }
+}
+```
+
+The (highly edited) output for this would then be:
+
+```json
+{
+    "ap": {
+        "series": {
+            "sa": {
+                "start": "1958.01",
+                "period": 12,
+                "value": [
+                    376.3347856204,
+                    375.901716365255,
+                    372.806470178912,
+                    ...
+                    497.229501731713,
+                    489.938510303138,
+                    495.711931582315
+                ]
+            },
+            "trn": {
+                "start": "1958.01",
+                "period": 12,
+                "value": [
+                    376.286928422183,
+                    373.87619471181,
+                    372.779077102035,
+                    ...
+                    490.745733941975,
+                    493.436466687849,
+                    496.136629337142
+                ]
+            }
+        },
+        "diagnostics": {
+            "adjtot": "no",
+            "altfreq": "no",
+            "build": 39,
+            "chsd.e5": 11.415133087211,
+            "chsd.e6": 3.2434651135914,
+            "chsd.e7": 1.0076702823301,
+            "chsd.e8": 11.415133087211,
+            ...
+            "time": "12.12.12",
+            "trendma": "default",
+            "version": 1.1,
+            "x11otl": "stderr",
+            "x11regress": "no"
+        }
+    }
 }
 ```
 

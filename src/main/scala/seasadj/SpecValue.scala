@@ -47,11 +47,11 @@ case object SpecCompType {
   def fromString(value: String): SpecCompType = SpecCompType(value)
   def fromJSON(value: String): SpecCompType = SpecCompType(value)
 
-  val NONE = new SpecCompType("none")
-  val ADD = new SpecCompType("add")
-  val SUB = new SpecCompType("sub")
-  val MULT = new SpecCompType("mult")
-  val DIV = new SpecCompType("div")
+  val NONE = SpecCompType("none")
+  val ADD = SpecCompType("add")
+  val SUB = SpecCompType("sub")
+  val MULT = SpecCompType("mult")
+  val DIV = SpecCompType("div")
 }
 
 /**
@@ -106,9 +106,17 @@ case class SpecString(value: String) extends SpecValue {
  * Factory methods for [[SpecString]].
  */
 case object SpecString {
-  def apply(value: String, inputType: InputType = STRING): SpecString = SpecString(value)
-  def fromString(value: String): SpecString = SpecString(value)
-  def fromJSON(value: String): SpecString = SpecString(value)
+  def apply(value: String, inputType: InputType = STRING): SpecString = inputType match {
+    case STRING => fromString(value)
+    case JSON => fromJSON(value)
+  }
+  def fromString(value: String): SpecString = SpecString(value.trim)
+
+  def fromJSON(value: String): SpecString = {
+    val v = value.trim
+    if (v.take(1) == "\"" & v.takeRight(1) == "\"") SpecString(v.drop(1).dropRight(1))
+    else SpecString(v)
+  }
 }
 
 /**

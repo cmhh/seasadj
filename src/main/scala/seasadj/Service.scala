@@ -60,10 +60,14 @@ object Service extends App with CORSHandler {
     pathPrefix("seasadj") { 
       post { 
         path("adjust") { corsHandler(
-          parameters(Symbol("save").?){ save =>
+          parameters(Symbol("save").?, Symbol("allDates").as[Boolean].?){ (save, allDates) =>
             val save_ = save match {
               case None => Vector[String]()
               case Some(x) => x.split(',').toVector
+            }
+            val allDates_ = allDates match {
+              case None => true
+              case Some(x) => x
             }
             entity(as[String]){ entity => 
               encodeResponseWith(Gzip){ complete(
@@ -73,7 +77,7 @@ object Service extends App with CORSHandler {
                     Specifications.fromJSONString(entity) match {
                       case Success(x) => {
                         Adjustor.adjust(x, save_) match {
-                          case Success(y) => y.toJSON
+                          case Success(y) => y.toJSON(allDates_)
                           case Failure(e) => throw AdjustmentFailedException("Adjustment failed.", e)
                         }
                       }

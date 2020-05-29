@@ -13,14 +13,21 @@ import java.nio.file.Path
 case class Adjustment(name: String, series: Map[String, TimeSeries], diagnostics: Map[String, DiagnosticValue]) extends JSONOutput {
   /**
    * Convert to JSON string.
+   *
+   * @param allDates whether to include dates in full for time series outputs, or just start and frequency
    */
-  def toJSON: String = {
+  def toJSON(allDates: Boolean): String = {
     val dstr = diagnostics.keys.toVector.sorted.map(key => {
       s""""$key":${diagnostics(key).toJSON}"""
     })
     val sstr = series.keys.toVector.sorted.map(key => {
-      s""""$key":${series(key).toJSON}"""
+      s""""$key":${series(key).toJSON(allDates)}"""
     })
     s"""{"series":{${sstr.mkString(",")}},"diagnostics":{${dstr.mkString(",")}}}"""
   } 
+
+  /**
+   * Convert to JSON string.
+   */
+  def toJSON: String = toJSON(true)
 }
