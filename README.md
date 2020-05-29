@@ -432,7 +432,7 @@ The `fromFile` method has a return-type of `Try[Specification]` meaning that it 
 val res = Adjustor.adjust(ap).get
 ```
 
-The `adjust` method will yield an object of `Try[Adjustment]`, again because adjustment might fail.  Assuming it is successful, the result will be an object of type `adjustment`, which we extract using `get` which is, again, particularly bad form in practice.  Either way, a successful result contains the time series outputs collected into a list, and a hashmap of all the various diagnostics.  For example, to pull the overall quality measure:
+The `adjust` method will yield an object of `Try[Adjustment]`, again because adjustment might fail.  Assuming it is successful, the result will be an object of type `Adjustment`, which we extract using `get` which is, again, particularly bad form in practice.  Either way, a successful result contains the time series outputs collected into a list, and a hashmap of all the various diagnostics.  For example, to pull the overall quality measure:
 
 ```
 scala> println(res.summary("f3.q"))
@@ -475,18 +475,17 @@ val bar: Adjustments = Adjustor.adjust(foo).get
 
 A common way of working with X13-ARIMA-SEATS is to store a collection of time series and specifications in a single working directory, and run a batch adjustment using a `mta` file.  While it probably isn't practical to anticipate every possible setup, a simple utility is provided which will import the contents of a workding directory and output a single JSON file for each `mta` file contained therein, provided the following conditions are met:
 
-* all external data files are stored a subdirectory `d`
-* all external adjustment files are stored in a subdirectory `f` 
 * there is one or more `mta` files in the root directory
 * there is one or more `spc` files in the root directory
+* all files referenced in the spc files are somewhere below the root directory.
 
-Given such a folder, one can then run:
+Given such a setup, one can then run:
 
 ```bash
 java -cp seasadj.jar org.cmhh.seasadj.ImportInputs <input path> <output path>
 ```
 
-Files stored in `d` and `f` will be matched up with `file` parameters in `spc` files as closely as possible (i.e. even if the full path does not match exactly), and the `file` parameters will generally be replaced with `data` parameters.
+Files will be matched up with `file` parameters in `spc` files as closely as possible (i.e. even if the full path does not match exactly), and the `file` parameters will generally be replaced with `data` parameters.  Essentially all files below root are recursively listed, the best match for a file referred to in a spec is the file with the longest matching sequence of characters from the end working backwards.
 
 ### Builder pattern
 
