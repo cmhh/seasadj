@@ -399,7 +399,7 @@ We can adjust this at the terminal by calling, for example:
 ```bash
 curl \
   --data '<json input>' \
-  localhost:9001/adjust \
+  localhost:9001/seasadj/adjust \
   --compressed --output -
 ```
 
@@ -409,7 +409,7 @@ Alternatively, if the input is stored in a JSON file called `foo.json`:
 curl \
   -X POST \
   -H "Content-Type: application/json" \
-  -d @foo.json localhost:9001/adjust \
+  -d @foo.json localhost:9001/seasadj/adjust \
   --compressed --output -
 ```
 
