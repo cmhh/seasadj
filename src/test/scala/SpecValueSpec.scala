@@ -53,12 +53,53 @@ class SpecValueSpec extends UnitSpec {
   }
 
   "SpecStringArray" can "be created from a String" in {
-    assert(SpecStringArray.fromString("(msr )").value.toList  == List("msr"))
-    assert(SpecStringArray.fromString("( msr)").value.toList  == List("msr"))
-    assert(SpecStringArray.fromString("( msr )").value.toList == List("msr"))
-    assert(SpecStringArray.fromString("(a,b)").value.toList   == List("a", "b"))
-    assert(SpecStringArray.fromString("(a b)").value.toList   == List("a", "b"))
-    assert(SpecStringArray.fromString("(a,)").value.toList    == List("a", ""))
-    assert(SpecStringArray.fromString("('a',)").value.toList  == List("a", ""))
+    assert(SpecStringArray.fromString("(msr )").values.toList  == List(Some("msr")))
+    assert(SpecStringArray.fromString("( msr)").values.toList  == List(Some("msr")))
+    assert(SpecStringArray.fromString("( msr )").values.toList == List(Some("msr")))
+    assert(SpecStringArray.fromString("(a,b)").values.toList   == List(Some("a"), Some("b")))
+    assert(SpecStringArray.fromString("(a b)").values.toList   == List(Some("a"), Some("b")))
+    assert(SpecStringArray.fromString("(a,)").values.toList    == List(Some("a"), None))
+    assert(SpecStringArray.fromString("('a',)").values.toList  == List(Some("a"), None))
+  }
+
+  it can "be created from JSON" in {
+    assert(SpecStringArray.fromJSON("""["msr" ]""").values.toList   == List(Some("msr")))
+    assert(SpecStringArray.fromJSON("""[ "msr"]""").values.toList   == List(Some("msr")))
+    assert(SpecStringArray.fromJSON("""[ "msr" ]""").values.toList  == List(Some("msr")))
+    assert(SpecStringArray.fromJSON("""["a","b"]""").values.toList  == List(Some("a"), Some("b")))
+    assert(SpecStringArray.fromJSON("""["a",null]""").values.toList == List(Some("a"), None))
+  }
+
+  "SpecInt" can "be created from an Int" in {
+    assert(SpecInt(1).value == 1)
+  }
+
+  it can "be created from a String" in {
+    assert(SpecInt("1").value == 1)
+  }
+
+  "SpecNum" can "be created from a number" in {
+    assert(SpecNum(1).value   == 1.0)
+    assert(SpecNum(1.0).value == 1.0)
+  }
+
+  it can "be created from a String" in {
+    assert(SpecNum("1").value   == 1.0)
+    assert(SpecNum("1.0").value == 1.0)
+  }
+
+  "SpecNumArray" can "be created from a number sequence" in {
+    assert(SpecNumArray(1, 2).values == List(Some(1.0), Some(2.0)))
+    assert(SpecNumArray(1.0, 2.0).values == List(Some(1.0), Some(2.0)))
+  }
+
+  it can "be created from a String" in {
+    assert(SpecNumArray.fromString("(1,)").values  == List(Some(1.0), None))
+    assert(SpecNumArray.fromString("(1,2)").values == List(Some(1.0), Some(2.0)))
+  }
+
+  it can "be created from JSON" in {
+    assert(SpecNumArray.fromJSON("[1,null]").values  == List(Some(1.0), None))
+    assert(SpecNumArray.fromJSON("[1,2]").values == List(Some(1.0), Some(2.0)))
   }
 }

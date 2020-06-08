@@ -122,23 +122,35 @@ case object SpecString {
 /**
  * String array specification value.
  */
-case class SpecStringArray(value: String*) extends SpecValue {
+case class SpecStringArray(values: Option[String]*) extends SpecValue {
   override def toString: String = {
-    val str = value
-      .map(s => if (s.contains(" ")) s""""${s}"""" else s)
+    val str = values
+      .map(value => value match {
+        case Some(s) => if (s.contains(" ")) s""""${s}"""" else s
+        case None => ""
+      })
       .mkString(", ")
-    if (value.size == 1) str
+    if (values.size == 1) str
     else s"($str)"
   }
 
-  def toJSON: String = "[" + value.map((x: String) => "\"" + x + "\"").mkString(", ") + "]"
+  def toJSON: String = {
+    val str = values
+      .map(value => value match {
+        case Some(s) => s""""$s""""
+        case None => "null"
+      })
+    s"[$str]"
+  }
 }
 
 /**
  * Factory methods for [[SpecStringArray]].
  */
 case object SpecStringArray {
-  def apply(values: =>Seq[String]): SpecStringArray = SpecStringArray(values: _*)
+  def apply(values: =>Seq[Option[String]]): SpecStringArray = SpecStringArray(values: _*)
+  def create(values: String*): SpecStringArray = SpecStringArray(values.map(v => Some(v)): _*)
+  def create(values: =>Seq[String]): SpecStringArray = SpecStringArray(values.map(v => Some(v)): _*)
 
   def apply(value: String, inputType: InputType = STRING): SpecStringArray = inputType match {
     case STRING => fromString(value)
@@ -146,11 +158,13 @@ case object SpecStringArray {
   }
 
   def fromString(value: String): SpecStringArray = {
+    def opt(s: String): Option[String] = if (s.trim.size == 0) None else Some(s.trim)
+
     @scala.annotation.tailrec
     def fromString_(
-      s: List[Char], numdquote: Int, numsquote: Int, comma: Boolean, buffer: String, accum: List[String]
-    ): List[String] = s match {
-      case Nil => if (!comma & buffer.trim == "") accum else accum :+ buffer.trim
+      s: List[Char], numdquote: Int, numsquote: Int, comma: Boolean, buffer: String, accum: List[Option[String]]
+    ): List[Option[String]] = s match {
+      case Nil => if (!comma & buffer.trim == "") accum else accum :+ opt(buffer)
       case h::t => {
         val outside = numdquote % 2 == 0 & numsquote % 2 == 0
         if ((h == '(' | h == ')') & outside) 
@@ -158,10 +172,10 @@ case object SpecStringArray {
         else if (h == '\n' | h == '\r')
           fromString_(t, numdquote, numsquote, comma, buffer, accum)
         else if (h == ',' & outside)
-          fromString_(t, numdquote, numsquote, true, "", accum :+ buffer.trim)
+          fromString_(t, numdquote, numsquote, true, "", accum :+ opt(buffer))
         else if (h == ' ' & outside) {
           if (buffer.trim != "")
-            fromString_(t, numdquote, numsquote, false, "", accum :+ buffer.trim)
+            fromString_(t, numdquote, numsquote, false, "", accum :+ opt(buffer))
           else
             fromString_(t, numdquote, numsquote, comma, buffer, accum)
         }
@@ -175,28 +189,31 @@ case object SpecStringArray {
           fromString_(t, numdquote, numsquote, comma, buffer + h, accum)
       }
     }
-    SpecStringArray(fromString_(value.toList, 0, 0, false, "", List[String]()): _*)
+    SpecStringArray(fromString_(value.toList, 0, 0, false, "", List[Option[String]]()): _*)
   }
 
   def fromJSON(value: String): SpecStringArray = {
-    def fromJSON_(s: List[Char], numquote: Int, buffer: String, accum: Array[String]): Array[String] = s match {
+    def fromJSON_(s: List[Char], numquote: Int, buffer: String, accum: Array[Option[String]]): Array[Option[String]] = s match {
       case Nil => accum
       case h::t => {
         if (h == '[' & (numquote % 2 == 0))
           fromJSON_(t, numquote, buffer, accum)
         else if ((h == ',' | h == ']') & (numquote % 2 == 0))
-          fromJSON_(t, numquote, "", accum :+ buffer)
+          fromJSON_(t, numquote, "", if (buffer.trim.size == 0) accum else accum :+ Some(buffer.trim))
         else if (h == ' ' & (numquote % 2 == 0))
           fromJSON_(t, numquote, buffer, accum)
-        else if (h == '"' & (numquote % 2 == 0))
+        else if (h == '"')
           fromJSON_(t, numquote + 1, buffer, accum)
-        else if (numquote % 2 != 0)
-          sys.error("Invalid input.")
+        else if (numquote % 2 == 0)
+          if (h == 'n' & t.take(3) == List('u', 'l', 'l')) 
+            fromJSON_(t.drop(3), numquote, "", accum :+ None)
+          else 
+            sys.error("Invalid input.")
         else
           fromJSON_(t, numquote, buffer + h, accum)
       }
     }
-    SpecStringArray(fromJSON_(value.toList, 0, "", Array[String]()).toList: _*)
+    SpecStringArray(fromJSON_(value.toList, 0, "", Array[Option[String]]()).toList: _*)
   }
 }
 
