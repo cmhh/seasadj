@@ -33,7 +33,4 @@ RUN  apt-get update && apt-get -y dist-upgrade && \
 
 EXPOSE 9001
 
-#CMD java -cp seasadj.jar org.cmhh.seasadj.Service && \
-#  tail -f /dev/null
-
 ENTRYPOINT ["java", "-cp", "/seasadj.jar", "org.cmhh.seasadj.Service"]
