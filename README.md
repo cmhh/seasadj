@@ -41,6 +41,12 @@ To run the service via Docker, simply run:
 docker run -td --rm --name seasadj -p 9001:9001 seasadj
 ```
 
+As a further alternative still, a `Dockerfile` is also included in the root directory which can be also used to build a container which can be run in the same way as above.  This container differs in that the required jar file is built as part of the Docker build.  The build will take longer, but it is also easier for those without experience with sbt.  It is also considerably smaller than the one above, 464MB vs 2.06GB, though there's probably ways to make the latter smaller.  To build:
+
+```bash
+docker build -t seasadj .
+```
+
 
 ## Overview X13-ARIMA-SEATS
 

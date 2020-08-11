@@ -366,6 +366,21 @@ case object SpecNumArray {
  */
 case class SpecSpan(start: Option[Date], end: Option[Date]) extends SpecValue {
   require(!(start == None & end == None), "start and end cannot both be empty.")
+
+  require(
+    {
+      start match {
+        case Some(s) => {
+          end match {
+            case Some(e) => (s.frequency == e.frequency) & (e >= s)
+            case _ => false
+          }
+        }
+        case _ => true
+      }
+    }, 
+    "start and end must have same frequency, and end must be after start."
+  )
   
   override def toString: String = {
     def str(s: Option[Date]): String = s match {
@@ -387,6 +402,8 @@ case class SpecSpan(start: Option[Date], end: Option[Date]) extends SpecValue {
  * Factory methods for [[SpecSpan]].
  */
 case object SpecSpan {
+  def apply(start: Date):SpecSpan = SpecSpan(Some(start), None)
+
   def apply(value: String, inputType: InputType = STRING): SpecSpan = inputType match {
     case STRING => fromString(value)
     case JSON => fromJSON(value)

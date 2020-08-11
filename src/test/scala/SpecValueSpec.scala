@@ -102,4 +102,15 @@ class SpecValueSpec extends UnitSpec {
     assert(SpecNumArray.fromJSON("[1,null]").values  == List(Some(1.0), None))
     assert(SpecNumArray.fromJSON("[1,2]").values == List(Some(1.0), Some(2.0)))
   }
+
+  /*
+  "SpecSpan" can "be created from Dates" in {
+    val q1 = Quarter(1986, 1)
+    val q2 = Quarter(1996, 4)
+    val m1 = Month(2020, 1)
+    val m2 = Month(2020, 6)
+    val s1 = SpecSpan(Some(q1), Some(q2))
+    val s2 = SpecSpan(Some(m1), Some(m2))
+  }
+  */
 }
