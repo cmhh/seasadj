@@ -13,3 +13,4 @@ fort.16
 **/*.jar
 *.json
 *attach*
+.metals
