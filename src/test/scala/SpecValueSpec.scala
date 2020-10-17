@@ -103,14 +103,42 @@ class SpecValueSpec extends UnitSpec {
     assert(SpecNumArray.fromJSON("[1,2]").values == List(Some(1.0), Some(2.0)))
   }
 
-  /*
   "SpecSpan" can "be created from Dates" in {
     val q1 = Quarter(1986, 1)
     val q2 = Quarter(1996, 4)
     val m1 = Month(2020, 1)
     val m2 = Month(2020, 6)
-    val s1 = SpecSpan(Some(q1), Some(q2))
-    val s2 = SpecSpan(Some(m1), Some(m2))
+    val s1 = SpecSpan(q1, q2)
+    val s2 = SpecSpan(m1, m2)
+    assert(s1.start == Some(q1))
+    assert(s1.end == Some(q2))
+    assert(s2.start == Some(m1))
+    assert(s2.end == Some(m2))
+    assert(SpecSpan(q1).end == None)
+    assert(SpecSpan(None, Some(q2)).start == None)
   }
-  */
+  
+  it can "be created from a String" in {
+    val s1 = SpecSpan("(1986.01,)")
+    val s2 = SpecSpan("(,2020.01)")
+    val s3 = SpecSpan("(1986.01,2020.01")
+    assert(s1.start == Some(Month(1986, 1)))
+    assert(s1.end == None)  
+    assert(s2.start == None)
+    assert(s2.end == Some(Month(2020, 1)))
+    assert(s3.start == Some(Month(1986, 1)))
+    assert(s3.end == Some(Month(2020, 1)))
+  }
+  
+  it can "be created from JSON" in {
+    val s1 = SpecSpan.fromJSON("[1986.01, Null]")
+    val s2 = SpecSpan.fromJSON("[Null, 2020.01]")
+    val s3 = SpecSpan.fromJSON("[1986.01, 2020.01]")
+    assert(s1.start == Some(Month(1986, 1)))
+    assert(s1.end == None)  
+    assert(s2.start == None)
+    assert(s2.end == Some(Month(2020, 1)))
+    assert(s3.start == Some(Month(1986, 1)))
+    assert(s3.end == Some(Month(2020, 1)))
+  }
 }

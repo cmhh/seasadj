@@ -14,3 +14,7 @@ fort.16
 *.json
 *attach*
 .metals
+.Rproj.user
+*.Rproj
+*.RData
+*.Rhistory
