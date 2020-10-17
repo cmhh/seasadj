@@ -373,7 +373,7 @@ case class SpecSpan(start: Option[Date], end: Option[Date]) extends SpecValue {
         case Some(s) => {
           end match {
             case Some(e) => (s.frequency == e.frequency) & (e >= s)
-            case _ => false
+            case _ => true
           }
         }
         case _ => true
@@ -403,6 +403,7 @@ case class SpecSpan(start: Option[Date], end: Option[Date]) extends SpecValue {
  */
 case object SpecSpan {
   def apply(start: Date):SpecSpan = SpecSpan(Some(start), None)
+  def apply(start: Date, end: Date): SpecSpan = SpecSpan(Some(start), Some(end))
 
   def apply(value: String, inputType: InputType = STRING): SpecSpan = inputType match {
     case STRING => fromString(value)
