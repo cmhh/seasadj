@@ -1,4 +1,3 @@
-apt update && apt install gfortran make
 mkdir -p /tmp/x13
 mkdir -p ${HOME}/.local/bin
 cd /tmp/x13
