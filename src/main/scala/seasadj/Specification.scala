@@ -478,7 +478,7 @@ case object Specification {
   }
 
   def fromFile(name: String, file: String): Try[Specification] = {
-    val body = sourceFromPath(file).getLines.mkString("\n")
+    val body = sourceFromPath(file).getLines().mkString("\n")
     fromString(name, body)
   }
 

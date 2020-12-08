@@ -4,8 +4,8 @@ package org.cmhh.seasadj
  * Specification value.
  */
 abstract sealed class SpecValue {
-  def toString(): String
-  def toJSON(): String 
+  def toString: String
+  def toJSON: String 
 }
 
 /**

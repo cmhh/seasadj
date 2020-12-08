@@ -58,7 +58,7 @@ object ImportInputs extends App {
       if (!outpath.isDirectory) sys.error("Output location is not a folder.")
 
       val res: Array[(String, Specifications)] = mta.map(m => {
-        val lines = sourceFromPath(m).getLines.toVector.map(_.split("\\s+")(0))
+        val lines = sourceFromPath(m).getLines().toVector.map(_.split("\\s+")(0))
         val specs: IndexedSeq[Specification] = lines.map(line => {
           val file = matchFile(s"${line}.spc", files, true)
           file match {

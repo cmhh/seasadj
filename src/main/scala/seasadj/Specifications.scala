@@ -329,7 +329,7 @@ case object Specifications {
    * @param file JSON file as [[String]]
    */
   def fromJSON(file: String): Try[Specifications] = Try {
-    val body = sourceFromPath(file).getLines.mkString
+    val body = sourceFromPath(file).getLines().mkString
     fromJSONString(body) match {
       case Success(x) => x
       case Failure(e) => throw e

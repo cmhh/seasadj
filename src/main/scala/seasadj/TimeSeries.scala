@@ -159,7 +159,7 @@ case object TimeSeries {
 
   def fromFile(file: String, skip: Int = 0): TimeSeries = {
     val src = sourceFromPath(file)
-    val lines = src.getLines.toVector.drop(skip).map(_.split("\\s+"))
+    val lines = src.getLines().toVector.drop(skip).map(_.split("\\s+"))
     src.close()
     val n = lines(0).size
 

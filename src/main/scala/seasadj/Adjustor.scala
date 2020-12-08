@@ -97,7 +97,7 @@ object Adjustor {
    */
   private def importGmt(file: String, save: Seq[String]): Map[String, TimeSeries] = {
     val records = sourceFromPath(file)
-      .getLines
+      .getLines()
       .toList
       .map(rec => {
         val pos = rec.indexOf(" ")
@@ -135,7 +135,7 @@ object Adjustor {
       if ((new File(s"$file.udg")).exists) "udg"
       else if ((new File(s"$file.xdg")).exists) "xdg"
       else sys.error("xdg / udg not found.")
-    val stats = sourceFromPath(s"$file.$extension").getLines.toList
+    val stats = sourceFromPath(s"$file.$extension").getLines().toList
     def importUdg_(stats: List[String], accum: Map[String, DiagnosticValue]): 
       Map[String, DiagnosticValue] = stats match {
       case Nil => accum
