@@ -1,6 +1,20 @@
 package org.cmhh.seasadj
 
 case class Adjustments(adjustments: IndexedSeq[Adjustment]) extends JSONOutput {
+  lazy val names: IndexedSeq[String] = adjustments.map(_.name)
+  
+  /**
+    * Get adjustment result by name.
+    *
+    * @param name name
+    * @return
+    */
+  def apply(name: String): Option[Adjustment] = {
+    val matches = adjustments.filter(_.name == name)
+    if (matches.size == 0) None
+    else Some(matches.head)
+  }
+
   /**
    * Subset [[Adjustments]].
    *

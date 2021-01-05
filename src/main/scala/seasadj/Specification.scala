@@ -403,8 +403,9 @@ case object Specification {
       case Nil => accum
       case h::t => {        
         if ((numsquote % 2 == 0) & (numdquote % 2 == 0) & (h == '#')) {
-          val pos = List('\n', '\r').map(t.indexOf(_)).filter(_ > -1).min
-          parse(t.drop(pos), numparentheses, numsquote, numdquote, level, k1, k2, buffer, accum)
+          val pos = List('\n', '\r').map(t.indexOf(_)).filter(_ > -1)
+          if (pos.size == 0) accum
+          else parse(t.drop(pos.max), numparentheses, numsquote, numdquote, level, k1, k2, buffer, accum)
         }
         else if (h == '{'& (numsquote % 2 == 0) & (numdquote % 2 == 0)) 
           parse(t, numparentheses, numsquote, numdquote, level + 1, buffer.trim.toLowerCase, k2, "", accum)

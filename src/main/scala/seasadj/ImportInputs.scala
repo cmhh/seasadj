@@ -37,13 +37,13 @@ object ImportInputs extends App {
       if (outpath.isDirectory) sys.error("Output location is a folder.")
 
       val specs: IndexedSeq[Specification] = spc.map(f => {
-        val name = f.getName.split('.')(0)
+        val name = f.getName.split('.').head
         Specification.fromFile(name, f) match {
           case Success(s) => s.resolveFiles(files) match {
             case Success(t) => t
             case Failure(e) => sys.error(s"Could not resolve all files for ${f.getName}.")            
           }
-          case Failure(e) => sys.error(s"Failed to import ${f.getName}.")
+          case Failure(e) => sys.error(s"Failed to import ${f.getName}.\n\n===\n${e.getMessage}\n===\n\n")
         }
       }).toVector
 
@@ -59,22 +59,22 @@ object ImportInputs extends App {
 
       val res: Array[(String, Specifications)] = mta.map(m => {
         val lines = sourceFromPath(m).getLines().toVector.map(_.split("\\s+")(0))
-        val specs: IndexedSeq[Specification] = lines.map(line => {
+        val specs: IndexedSeq[Specification] = lines.filter(_ != "").map(line => {
           val file = matchFile(s"${line}.spc", files, true)
           file match {
             case None => sys.error(s"No spc file matching '${line}' found.")
             case Some(f) => {
-              Specification.fromFile(line, f) match {
+              Specification.fromFile(line.split('/').last, f) match {
                 case Success(s) => s.resolveFiles(files) match {
                   case Success(t) => t
                   case Failure(e) => sys.error(s"Could not resolve all files for ${f.getName}.")
                 }
-                case Failure(e) => sys.error(s"Failed to import ${f.getName}.")
+                case Failure(e) => sys.error(s"Failed to import ${f.getName}.\n\n===\n${e.getMessage}\n===\n\n")
               }
             }
           }
         })
-        (m.getName.split('.')(0), Specifications(specs))
+        (m.getName.split('.').head, Specifications(specs))
       })
 
       res.foreach(x => {

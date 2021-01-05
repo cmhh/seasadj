@@ -280,6 +280,10 @@ case object Specifications {
           else
             sys.error("Invalid input.")
         }
+        else if (h == '\\')
+          parse(t.tail, level, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff + h + t.head, accum)
+        else if (h != ']' & numbracket % 2 != 0)
+          parse(t, level, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff + h, accum)
         else if (h == '\'' & ndquote % 2 == 0)
           parse(t, level, ndquote, nsquote + 1, numbracket, name, spec, param, specbuff, valbuff, accum)
         else if (h == '"' & nsquote % 2 == 0)
@@ -290,8 +294,8 @@ case object Specifications {
           parse(t, level, ndquote, nsquote, numbracket + 1, name, spec, param, specbuff, valbuff + h, accum)
         else
           parse(t, level, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff + h, accum)
-        }
       }
+    }
 
     def toSpecifications(x: IndexedSeq[(String, String, Map[String, String])]): Specifications = {
       val names = x.map(_._1).distinct

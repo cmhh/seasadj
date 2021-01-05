@@ -28,9 +28,10 @@ case object Frequency {
  * @param start start date of series
  * @param frequency frequency
  */
-case class TimeSeries(data: IndexedSeq[Option[Double]], start: Date, frequency: Frequency) extends JSONOutput {
-  lazy val size: Int = data.size
-  lazy val dates: IndexedSeq[Date] = this.start.seq(data.size)
+case class TimeSeries(data: NumArray, start: Date, frequency: Frequency) extends JSONOutput {
+  lazy val dim: (Int, Int) = data.dim
+  lazy val size: Int = dim._1
+  lazy val dates: IndexedSeq[Date] = this.start.seq(size)
   lazy val years: IndexedSeq[Int] = dates.map(_.year)
   lazy val periods: IndexedSeq[Int] = dates.map(_.period)
 
@@ -41,26 +42,33 @@ case class TimeSeries(data: IndexedSeq[Option[Double]], start: Date, frequency: 
    */
   def map(f: Double => Double): TimeSeries = 
     TimeSeries(
-      data.map(x => x match {
-        case Some(y) => Some(f(y))
-        case _ => None
-      }),
+      data.map(f),
       start, frequency
     )
 
-  override def toString: String = {
-    val txt: Seq[String] = data.map(x => x match {
-      case None => "NA"
-      case Some(x) => (math.round(x * 1e8) / 1e8).toString
-    })
+  /**
+    * Combine time series.
+    * 
+    * @param that [[TimeSeries]]
+    * @param op function {{(Double, Double) => Double}}
+    *
+    * @return [[TimeSeries]]
+    */
+  def comb(that: TimeSeries)(op: (Double, Double) => Double) = {
+    require(start == that.start, "Series must have matching start dates.")
+    require(frequency == that.frequency, "Series must have matching frequency.")
+    require(dates(0) == that.dates(0), "Series must cover same range.")
+    TimeSeries(
+      data.comb(that.data)(op),
+      start, frequency
+    )
+  }
 
+  override def toString: String = {
+    val w = data.data.flatMap(x => x).map(x => (math.round(x * 1e8) / 1e8).toString.size).max
     val f = frequency.frequency
-    val w = math.max(3, txt.map(_.size).max)
     val p = periods.indexOf(1)
     val n = (f - p) % f
-
-    val dates_ = if (n == 0) dates else (dates(0) - n).seq(size + n)
-    val txt_ = if (n == 0) txt else ((1 to n).toVector.map(i => "") ++ txt)
 
     def pad(s: String): String = s"%${w}s".format(s)
 
@@ -68,14 +76,29 @@ case class TimeSeries(data: IndexedSeq[Option[Double]], start: Date, frequency: 
       if (f == 4) List("mar", "jun", "sep", "dec")
       else List("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 
-    val hdr = "     " + months.map(pad(_)).mkString(" ")
+    if (data.dim._2 == 1) {
+      val dates_ = if (n == 0) dates else (dates(0) - n).seq(size + n)
+      val txt = data.data.map(x => x match {
+        case None => "NA"
+        case Some(d) => (math.round(d * 1e8) / 1e8).toString
+      })
+      val txt_ = if (n == 0) txt else ((1 to n).toVector.map(i => "") ++ txt)
+      val hdr = "     " + months.map(pad(_)).mkString(" ")
 
-    val lines = (1 to (dates_.size / f)).map(i => {
-      val y = dates_((i - 1) * f).year
-      y.toString + " " + txt_.drop((i - 1) * f).take(f).map(pad(_)).mkString(" ")
-    }).mkString("\n")
+      val lines = (1 to (dates_.size / f)).map(i => {
+        val y = dates_((i - 1) * f).year
+        y.toString + " " + txt_.drop((i - 1) * f).take(f).map(pad(_)).mkString(" ")
+      }).mkString("\n")
 
-    hdr + "\n" + lines
+      hdr + "\n" + lines
+    } else {
+      (1 to data.dim._1).map(i => {
+        dates(i - 1).toString + "  " + (1 to data.dim._2).map(j => data(i,j) match {
+          case Some(d) => (math.round(d * 1e8) / 1e8).toString
+          case None => "NA"
+        }).map(pad(_)).mkString("  ")
+      }).mkString("\n")
+    }
   }
 
   /**
@@ -85,15 +108,26 @@ case class TimeSeries(data: IndexedSeq[Option[Double]], start: Date, frequency: 
    */
   def toJSON(allDates: Boolean): String = {
     val d = dates.map(x => s""""$x"""")
-    val v = data.map(x => x match {
-      case Some(x) => x.toString
-      case None => ""
-    })
+
+    val v = if (data.dim._2 == 1) {
+      data.data.map(x => x match {
+        case Some(x) => x.toString
+        case None => ""
+      }).mkString(",")
+    } else {
+      (1 to data.dim._1).map(i => {
+        val row = (1 to data.dim._2).map(j => data(i,j) match {
+          case Some(x) => x.toString
+          case None => ""
+        }).mkString(",")
+        s"[$row]"
+      }).mkString(",")
+    }
 
     if (allDates) 
-      s"""{"date":[${d.mkString(",")}],"value":[${v.mkString(",")}]}"""
+      s"""{"date":[${d.mkString(",")}],"value":[$v]}"""
     else
-      s"""{"start":"${start.toString}","period":${frequency.frequency},"value":[${v.mkString(",")}]}"""
+      s"""{"start":"${start.toString}","period":${frequency.frequency},"value":[$v]}"""
   }
 
   /**
@@ -104,8 +138,13 @@ case class TimeSeries(data: IndexedSeq[Option[Double]], start: Date, frequency: 
   /**
    * Return specification values.
    */
-  def toSpecValue: (SpecNumArray, SpecDate) = 
-    (SpecNumArray(data: _*), SpecDate(start))
+  def toSpecValue: (SpecNumArray, SpecDate) = {
+    val d = if (data.dim._2 == 1)
+      data.data
+    else 
+      (1 to data.dim._1).flatMap(i => (1 to data.dim._2).map(j => data(i,j)))
+    (SpecNumArray(d: _*), SpecDate(start))
+  }
 
   /**
    * Subset [[TimeSeries]].
@@ -124,8 +163,14 @@ case class TimeSeries(data: IndexedSeq[Option[Double]], start: Date, frequency: 
       case _ => dates.last
     }
 
+    val rows = dates.zipWithIndex.filter(x => x._1 >= s & x._1 <= e).map(_._2 + 1)
+    val array = NumArray(
+      (1 to data.dim._2).flatMap(j => rows.map(i => data(i,j))).toVector,
+      Some(rows.size), Some(data.dim._2), false
+    )
+
     TimeSeries(
-      data.zip(dates).filter(x => x._2 >= s & x._2 <= e).map(_._1),
+      array,
       s,
       frequency
     )
@@ -136,7 +181,7 @@ case class TimeSeries(data: IndexedSeq[Option[Double]], start: Date, frequency: 
    *
    * @param date date
    */
-  def from(date: Date): TimeSeries = window(Some(date), None)
+  def from(date: Date): TimeSeries = ??? /*window(Some(date), None)*/
 
   /**
    * Subset [[TimeSeries]]&ndash;from the start of the series to some date.
@@ -154,37 +199,43 @@ case object TimeSeries {
   
   def apply[T: Numeric](data: =>IndexedSeq[T], start: Date, frequency: Frequency): TimeSeries = {
     val num = implicitly[Numeric[T]]
-    TimeSeries(data.map(x => Some(num.toDouble(x))), start, frequency)
+    TimeSeries(NumArray(data), start, frequency)
   }
 
   def fromFile(file: String, skip: Int = 0): TimeSeries = {
     val src = sourceFromPath(file)
-    val lines = src.getLines().toVector.drop(skip).map(_.split("\\s+"))
+    val lines = src.getLines().toVector.drop(skip).map(_.trim.split("\\s+"))
     src.close()
+
     val n = lines(0).size
+    val dateParts = if (lines(0)(0).matches("^\\d{4}$")) 2 else 1
 
-    if (n == 3) {
-      val year = lines.map(x => x(0).toInt)
-      val period = lines.map(x => x(1).toInt)
-      val value = lines.map(x => x(2).toDouble)
-      val f = period.distinct.size
-      if (!List(4, 12).contains(f)) sys.error("Series must be monthly or quarterly.")
-      if (f == 4)
-        TimeSeries(value, Quarter(year(0), period(0)), Frequency.QUARTERLY)
-      else
-        TimeSeries(value, Month(year(0), period(0)), Frequency.MONTHLY)
-    } else {
-      val year = lines.map(x => x(0).take(x(0).size - 2).toInt)
-      val period = lines.map(x => x(0).takeRight(2).toInt)
-      val value = lines.map(x => x(1).toDouble)
-      val f = period.distinct.size
-      if (!List(4, 12).contains(f)) sys.error("Series must be monthly or quarterly.")
-      if (f == 4)
-        TimeSeries(value, Quarter(year(0), period(0)), Frequency.QUARTERLY)
-      else
-        TimeSeries(value, Month(year(0), period(0)), Frequency.MONTHLY)
-    }
+    val dates = lines.map(x => {
+      if (dateParts == 2) (x(0).toInt, x(1).toInt)
+      else if (x(0).matches("^\\d{4}\\d{2}")) (x(0).take(4).toInt, x(0).takeRight(2).toInt)
+      else sys.error("Unhandled format.")
+    })
+
+    val data = NumArray(
+      lines.flatMap(x => {
+        x.drop(dateParts).map(y => Some(y.toDouble))
+      }),
+      None,
+      Some(n - dateParts),
+      true
+    )
+
+    val year = dates.map(_._1)
+    val period = dates.map(_._2)
+    
+    val f = period.distinct.size
+    if (!List(4, 12).contains(f)) sys.error("Series must be monthly or quarterly.")
+
+    if (f == 4)
+      TimeSeries(data, Quarter(year(0), period(0)), Frequency.QUARTERLY)
+    else
+      TimeSeries(data, Month(year(0), period(0)), Frequency.MONTHLY)
   }
-
+  
   def fromFile(file: File, skip: Int): TimeSeries = fromFile(file.getAbsolutePath, skip)
 }

@@ -20,3 +20,7 @@ fort.16
 *.Rproj
 *.RData
 *.Rhistory
+**/.bloop
+project
+!project/assembly.sbt
+!project/build.properties

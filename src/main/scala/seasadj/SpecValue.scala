@@ -140,6 +140,7 @@ case class SpecStringArray(values: Option[String]*) extends SpecValue {
         case Some(s) => s""""$s""""
         case None => "null"
       })
+      .mkString(",")
     s"[$str]"
   }
 }
@@ -208,7 +209,7 @@ case object SpecStringArray {
           if (h == 'n' & t.take(3) == List('u', 'l', 'l')) 
             fromJSON_(t.drop(3), numquote, "", accum :+ None)
           else 
-            sys.error("Invalid input.")
+            sys.error(s"""Invalid input for SpecStringArray ("$value").""")
         else
           fromJSON_(t, numquote, buffer + h, accum)
       }
@@ -516,7 +517,7 @@ case class SpecARIMA(pdq: Model, PDQ: Option[Model], L: Option[Int]) extends Spe
     }
   }
 
-  def toJSON: String = toString
+  def toJSON: String = s""""$toString""""
 
   def numParams: Int = PDQ match {
     case None => pdq.numParams
