@@ -1,7 +1,7 @@
 name := """seasadj"""
 organization := "org.cmhh"
 scalaVersion := "2.13.4"
-version := "0.1.1"
+version := "0.2.0"
 scalacOptions += "-deprecation"
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.6.4"

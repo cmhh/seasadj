@@ -24,3 +24,4 @@ fort.16
 project
 !project/assembly.sbt
 !project/build.properties
+docs

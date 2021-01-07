@@ -3,12 +3,12 @@ package org.cmhh.seasadj
 /**
  * AR or MA order, i.e. p, q, P, or Q.
  *
- * Can be a single integer, or a descending sequence, such as `3,2` or `3,2,1`.
+ * Can be a single integer, or an ascending sequence, such as `3,2` or `3,2,1`.
  *
  * @param value A list of integers
  */
 case class Order(value: List[Int]) {
-  require(decreasing(value), "Values must be decreasing.")
+  require(increasing(value), "Values must be increasing.")
   require(positive(value), "Values must be positive.")
  
   override def toString: String = {
@@ -24,10 +24,10 @@ case class Order(value: List[Int]) {
   val numParams: Int = if (value.size > 1) value.size else value(0)
 
   @scala.annotation.tailrec
-  private def decreasing(x: Seq[Int]): Boolean = {
+  private def increasing(x: Seq[Int]): Boolean = {
     if (x.size == 1) true
-    else if (x(1) > x(0)) false
-    else decreasing(x.drop(1))
+    else if (x(1) < x(0)) false
+    else increasing(x.drop(1))
   }
 
   private def positive(x: Seq[Int]): Boolean = 
@@ -40,6 +40,21 @@ case class Order(value: List[Int]) {
 case object Order {
   def apply(value: Int): Order = new Order(List(value))
   def apply(value: Int*): Order = new Order(value.toList)
+
+  def fromString(value: String): Order = {
+    val l = value
+      .replace("[", "").replace("]", "")
+      .trim
+      .replaceAll("\\s*,\\s*", " ")
+      .replaceAll("\\s+", " ")
+      .split(" ")
+      .map(_.toInt)
+      .toList
+
+    Order(l)
+  }
+
+  def fromJSON(value: String): Order = fromString(value.replaceAll("\"", ""))
 }
 
 /**
@@ -49,17 +64,41 @@ case object Order {
  * @param d integration order
  * @param q moving average order
  */
-case class Model(p: Order, d: Int, q: Order) {
+case class Model(p: Order, d: Int, q: Order, L: Option[Int]) {
   require(d >= 0 & d <= 3, "Order of integration must be in the range [0,3].")
   require(p.value.max <= 36, "Autoregressive order must be less than or equal to 36.")
   require(q.value.max <= 36, "Moving average order must be less than or equal to 36.")
 
-  override def toString: String = s"($p $d $q)"
+  override def toString: String = L match {
+    case Some(l) => s"($p $d $q)$l"
+    case None => s"($p $d $q)"
+  }
 
   /**
    * Total number of paramters.
    */
   val numParams: Int = p.numParams + d + q.numParams
+}
+
+case object Model {
+  def apply(p: Int, d: Int, q: Int, L: Int): Model = Model(Order(p), d, Order(q), Some(L))
+  def apply(p: Int, d: Int, q: Int): Model = Model(Order(p), d, Order(q), None)
+  def apply(p: Order, d: Int, q: Order): Model = Model(p, d, q, None)
+
+  def fromString(value: String): Model = {
+    val o = "((?:\\[(?:\\d+[,\\s]*)+\\])|\\d+)"
+    val r = s"^\\s*\\(\\s*${o}[,\\s]+${o}[,\\s]+${o}\\s*\\)(\\d*)\\s*$$".r
+    val r(p, d, q, l) = value
+
+    Model(
+      Order.fromString(p),
+      d.toInt,
+      Order.fromString(q),
+      if (l == "") None else Some(l.toInt)
+    )
+  }
+
+  def fromJSON(value: String): Model = fromString(value.replaceAll("\"", ""))
 }
 
 /**

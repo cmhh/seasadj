@@ -478,9 +478,13 @@ case object SpecARMA {
   }
 
   def fromString(value: String): SpecARMA = {
+    val split = 
+      if (value.contains(",")) 
+        value.replaceAll("\\s+", "").split(",") 
+      else
+        value.split("\\s+")
     SpecARMA(
-      value
-        .split("(,|\\s)+")
+      split
         .map(_.replace("(","").replace(")",""))
         .map(Coefficient.fromString(_))
         .toList
@@ -504,25 +508,13 @@ case object SpecARMA {
 /**
  * ARIMA specification value.
  */
-case class SpecARIMA(pdq: Model, PDQ: Option[Model], L: Option[Int]) extends SpecValue {
+case class SpecARIMA(value: List[Model]) extends SpecValue {
+  val numParams: Int = value.map(pdq => pdq.numParams).sum
   require(numParams <= 133)
 
-  override def toString: String = {
-    PDQ match {
-      case Some(m) => L match {
-        case Some(i) => s"$pdq$m$i"
-        case _ => s"$pdq$m"
-      }
-      case _ => s"$pdq"
-    }
-  }
+  override def toString: String = value.map(pdq => pdq.toString).mkString("")
 
   def toJSON: String = s""""$toString""""
-
-  def numParams: Int = PDQ match {
-    case None => pdq.numParams
-    case Some(m) => pdq.numParams + m.numParams
-  }
 }
 
 /**
@@ -535,35 +527,10 @@ case object SpecARIMA {
   }
 
   def fromString(value: String): SpecARIMA = {
-    def parse(s: List[Char], numbracket: Int, buffer: String, accum: List[String]): List[String] = s match {
-      case Nil => accum :+ buffer
-      case h::t => {
-        if ((h == ' ' | h == ',') & numbracket % 2 == 0)
-          parse(t, numbracket, "", accum :+ buffer)
-        else if (h == '[' | h == ']')
-          parse(t, numbracket + 1, buffer, accum)
-        else
-          parse(t, numbracket, buffer + h, accum)
-      }
-    }
-
-    def toModel(value: String): Model = {
-      val m = parse(value.toList, 0, "", List[String]())
-      Model(
-        Order(m(0).split("(,|\\s)+").map(_.toInt).toList),
-        m(1).toInt,
-        Order(m(2).split("(,|\\s)+").map(_.toInt).toList)
-      )
-    }
-
-    val x = value.split(')').map(_.replace("(",""))
-
-    SpecARIMA(
-      toModel(x(0)),
-      if (x.size > 1) Some(toModel(x(1))) else None,
-      if (x.size == 3) Some(x(2).toInt) else None
-    )
+    val o = "((?:\\[(?:\\d+[,\\s]*)+\\])|\\d+)"
+    val r = s"\\s*\\(\\s*${o}[,\\s]+${o}[,\\s]+${o}\\s*\\)(\\d*)\\s*".r
+    SpecARIMA(r.findAllIn(value).toList.map(Model.fromString))
   }
 
-  def fromJSON(value: String): SpecARIMA = fromString(value)
+  def fromJSON(value: String): SpecARIMA = fromString(value.replaceAll("\"", ""))
 }

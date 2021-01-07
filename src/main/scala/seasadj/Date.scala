@@ -91,23 +91,25 @@ case object Date {
    * Create [[Date]] from string.
    *
    * The type of date will be inferred from the string.  Strings like `2001.1` will be assumed to be quarterly,
-   * while strings like `2001.01` and `2001.jan` will be assumed to be monthly. 
+   * while strings like `2001.01` and `2001.jan` will be assumed to be monthly.  This means that the string
+   * `2001.5` will throw a [[java.lang.IllegalArgumentException]], which is not the behaviour required by
+   * X13-ARIMA-SEATS.
    *
    * @param date date as string.
    */
   def apply(date: String): Date = {
-    val split = date.split('.')
+    val split = date.replaceAll("\"", "").split('.')
     if (split.size != 2) sys.error("Unknown date format.")
     val (year, period) = (split(0).toInt, split(1))
     val months = Vector("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
     if (months.contains(period.toLowerCase)) {
-      val pd = months.zipWithIndex.filter(_._1 == period.toLowerCase).map(_._2).head
+      val pd = months.zipWithIndex.filter(_._1 == period.toLowerCase).map(_._2).head + 1
       Month(year, pd)
     } else if ((1 to 12).map(i => "%02d".format(i)).contains(period)) {
       Month(year, period.toInt)
     } else if ((1 to 4).map(_.toString).contains(period)) {
       Quarter(year, period.toInt)
     } else
-      sys.error("Unknown date format.")
+      throw new IllegalArgumentException("Invalid date format.")
   }
 }
