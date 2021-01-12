@@ -86,6 +86,7 @@ case object Model {
   def apply(p: Order, d: Int, q: Order): Model = Model(p, d, q, None)
 
   def fromString(value: String): Model = {
+    // ([1 2] 1 [1 2]), (1, 0, 1), etc.
     val o = "((?:\\[(?:\\d+[,\\s]*)+\\])|\\d+)"
     val r = s"^\\s*\\(\\s*${o}[,\\s]+${o}[,\\s]+${o}\\s*\\)(\\d*)\\s*$$".r
     val r(p, d, q, l) = value

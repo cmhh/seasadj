@@ -39,6 +39,11 @@ object Adjustor {
 
   /**
    * Perform seasonal adjustment.
+   * 
+   * Seasonal adjustment can produce a large number of time series components, 
+   * and the ability to filter is included here.  It might be better to 
+   * implement this elsewhere, but each series kept must be read from disk, 
+   * so controlling what is read here can improve response times. 
    *
    * @param specifications [[Specification]]
    * @param save list of time series outputs to keep

@@ -4,6 +4,8 @@ import java.io.{File, BufferedWriter, FileWriter}
 import java.nio.file.Path
 
 trait JSONOutput {
+  import FileUtils._
+
   /**
    * Convert to JSON string.
    */
@@ -17,7 +19,7 @@ trait JSONOutput {
    */
   def toJSON(folder: File, name: Option[String] = None): File = {
     val file: File = name match {
-      case None => new File(s"${folder.getAbsolutePath}/${FileUtils.getTempFile(folder.getAbsolutePath, prefix = None, suffix = Some(".json"))}")
+      case None => new File(s"${folder.getAbsolutePath}/${getTempFile(folder.getAbsolutePath, prefix = None, suffix = Some(".json"))}")
       case Some(f) => new File(s"${folder.getAbsolutePath}/$f.json")
     }    
     val bw = new BufferedWriter(new FileWriter(file))

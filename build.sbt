@@ -4,6 +4,7 @@ scalaVersion := "2.13.4"
 version := "0.2.0"
 scalacOptions += "-deprecation"
 
+libraryDependencies += "com.lihaoyi" %% "upickle" % "0.9.5"
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.6.4"
 libraryDependencies += "com.typesafe.akka" %% "akka-http" % "10.1.11"
 libraryDependencies += "com.typesafe.akka" %% "akka-stream" % "2.6.4"

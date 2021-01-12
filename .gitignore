@@ -25,3 +25,4 @@ project
 !project/assembly.sbt
 !project/build.properties
 docs
+scratch.txt

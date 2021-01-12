@@ -1,5 +1,7 @@
-package org.cmhh.seasadj
+package org.cmhh.seasadj.tools
 
+import org.cmhh.seasadj.{Specification, Specifications}
+import org.cmhh.seasadj.FileUtils._
 import scala.util.{Failure, Success}
 import java.io.{File}
 
@@ -15,8 +17,6 @@ import java.io.{File}
  * mta file found.
  */
 object ImportInputs extends App {
-  import FileUtils._
-
   if (args.size < 2) {
     println("Usage: java -jar seasadj.jar <input folder> [output folder | output file]")
   } else { 

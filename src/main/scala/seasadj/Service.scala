@@ -9,7 +9,6 @@ import akka.http.scaladsl.server.{ Route, Directive0 }
 import akka.http.scaladsl.coding.Gzip
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.ExceptionHandler
-import akka.stream.ActorMaterializer
 import scala.io.StdIn
 import scala.util.{Failure, Success, Try}
 
@@ -43,6 +42,8 @@ trait CORSHandler{
 }
 
 object Service extends App with CORSHandler {
+  import org.cmhh.seasadj._
+  
   implicit val system = ActorSystem("seasadj")
   implicit val executionContext = system.dispatcher
 
@@ -56,45 +57,99 @@ object Service extends App with CORSHandler {
       complete(HttpResponse(StatusCodes.BadRequest, entity = e.cause.getStackTrace.mkString("\n")))
   }
 
-  val route = 
-    pathPrefix("seasadj") { 
-      post { 
-        path("adjust") { corsHandler(
-          parameters(Symbol("save").?, Symbol("allDates").as[Boolean].?){ (save, allDates) =>
-            val save_ = save match {
-              case None => Vector[String]()
-              case Some(x) => x.split(',').toVector
-            }
-            val allDates_ = allDates match {
-              case None => true
-              case Some(x) => x
-            }
-            entity(as[String]){ entity => 
-              encodeResponseWith(Gzip){ complete(
-                HttpEntity(
-                  ContentTypes.`application/json`,
-                  {
-                    Specifications.fromJSONString(entity) match {
-                      case Success(x) => {
-                        Adjustor.adjust(x, save_) match {
-                          case Success(y) => y.toJSON(allDates_)
-                          case Failure(e) => throw AdjustmentFailedException("Adjustment failed.", e)
-                        }
-                      }
-                      case Failure(e) => throw ImportFailedException("Invalid input.", e)
-                    }
-                  }
-                )
-              )}
+  object routes {
+    val version = path("version") {
+      complete(HttpEntity(ContentTypes.`application/json`, "[\"0.2.0\"]"))
+    }
+
+    val validateSPC = path("validateSPC") {
+      entity(as[String]){ entity =>
+        complete(HttpEntity(
+          ContentTypes.`application/json`,
+          {
+            Specification.fromString("", entity) match {
+              case Success(r) => """{"result":"passed"}"""
+              case Failure(e) => s"""{"result":"failed", "error":"${e.getMessage()}"}"""
             }
           }
-        )}
+        ))
       }
+    }
+
+    val validateJSON = path("validateJSON") {
+      entity(as[String]){ entity =>
+        complete(HttpEntity(
+          ContentTypes.`application/json`,
+          {
+            Specifications.fromJSONString(entity) match {
+              case Success(r) => """{"result":"passed"}"""
+              case Failure(e) => s"""{"result":"failed", "error":"${e.getMessage()}"}"""
+            }
+          }
+        ))
+      }
+    }
+
+    val toJSON = (path("toJSON" / Segment)) { (name) =>
+      entity(as[String]){ entity =>
+        complete(HttpEntity(
+          ContentTypes.`application/json`,
+          {
+            Specification.fromString(name, entity) match {
+              case Success(r) => r.toJSON
+              case Failure(e) => s"""{"result":"failed", "error":"${e.getMessage()}"}"""
+            }
+          }
+        ))
+      }
+    }
+
+    val adjust = path("adjust") {
+      parameters(Symbol("save").?, Symbol("allDates").as[Boolean].?){ (save, allDates) =>
+        val save_ = save match {
+          case None => Vector[String]()
+          case Some(x) => x.split(',').toVector
+        }
+        val allDates_ = allDates match {
+          case None => true
+          case Some(x) => x
+        }
+        entity(as[String]){ entity => 
+          encodeResponseWith(Gzip){ complete(
+            HttpEntity(
+              ContentTypes.`application/json`,
+              {
+                Specifications.fromJSONString(entity) match {
+                  case Success(x) => {
+                    Adjustor.adjust(x, save_) match {
+                      case Success(y) => y.toJSON(allDates_)
+                      case Failure(e) => throw AdjustmentFailedException("Adjustment failed.", e)
+                    }
+                  }
+                  case Failure(e) => throw ImportFailedException("Invalid input.", e)
+                }
+              }
+            )
+          )}
+        }
+      }
+    }
+  }
+
+  val route = 
+    pathPrefix("seasadj") { 
+      corsHandler(
+        post { 
+          routes.adjust ~ pathPrefix("spec")(routes.validateJSON ~ routes.validateSPC ~ routes.toJSON)
+        } ~
+        get {
+          routes.version
+        })
     }
 
   val bindingFuture = Http().bindAndHandle(route, "0.0.0.0", 9001)
 
-  println(s"Server online at http://localhost:9001/seasadj\nPress RETURN to stop...")
+  println(s"Server online at http://localhost:9001/seasadj\nPress ENTER to stop...")
   StdIn.readLine() 
   bindingFuture
     .flatMap(_.unbind()) 

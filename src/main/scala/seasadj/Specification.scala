@@ -305,11 +305,13 @@ case class Specification(name: String, specs: Specs) extends JSONOutput {
    * @param root a folder to recursively search for candidate files 
    */
   def resolveFiles(root: File): Try[Specification] = {
-    val files = FileUtils.listFiles(root, List("^.+(/o){1}$"))
+    import FileUtils._
+
+    val files = listFiles(root, List("^.+(/o){1}$"))
     def resolve(x: List[(String, String, SpecValue)], accum: Specification): Specification = x match {
       case Nil => accum
       case h::t => {
-        val matchedFile = FileUtils.matchFile(h._3.toString, files, true) match {
+        val matchedFile = matchFile(h._3.toString, files, true) match {
           case Some(f: File) => f
           case _ => sys.error(s"Could not find match for ${h._3}.")
         }
@@ -354,10 +356,12 @@ case class Specification(name: String, specs: Specs) extends JSONOutput {
    * @param files a collection of candidate files 
    */
   def resolveFiles(files: IndexedSeq[File]): Try[Specification] = {
+    import FileUtils._
+    
     def resolve(x: List[(String, String, SpecValue)], accum: Specification): Specification = x match {
       case Nil => accum
       case h::t => {
-        val matchedFile = FileUtils.matchFile(h._3.toString, files, true) match {
+        val matchedFile = matchFile(h._3.toString, files, true) match {
           case Some(f: File) => f
           case _ => sys.error(s"Could not find match for ${h._3}.")
         }
@@ -394,93 +398,23 @@ case object Specification {
   def apply(name: String): Specification = 
     Specification(name, Map[String, Spec]())
 
-  def fromString(name: String, body: String): Try[Specification] = {
-    @scala.annotation.tailrec
-    def parse(s: List[Char], numparentheses: Int,
-              numsquote: Int, numdquote: Int, level: Int,
-              k1: String, k2: String, buffer: String,
-              accum: Specs): Specs = s match {
-      case Nil => accum
-      case h::t => {        
-        if ((numsquote % 2 == 0) & (numdquote % 2 == 0) & (h == '#')) {
-          val pos = List('\n', '\r').map(t.indexOf(_)).filter(_ > -1)
-          if (pos.size == 0) accum
-          else parse(t.drop(pos.max), numparentheses, numsquote, numdquote, level, k1, k2, buffer, accum)
-        }
-        else if (h == '{'& (numsquote % 2 == 0) & (numdquote % 2 == 0)) 
-          parse(t, numparentheses, numsquote, numdquote, level + 1, buffer.trim.toLowerCase, k2, "", accum)
-        else if (h == '}' & (numsquote % 2 == 0) & (numdquote % 2 == 0)) {
-          if (k2.trim != "" & buffer.trim != ""){
-            val spec: Try[SpecValue] = Validator.specValue(k1, k2, buffer.trim)
-            spec match {
-              case Success(s) => {
-                val m =
-                  if (accum.contains(k1)) accum + (k1 -> (accum(k1) + (k2 -> s)))
-                  else accum + (k1 -> Map[String, SpecValue](k2 -> s))
-                parse(t, numparentheses, numsquote, numdquote, level - 1, k1, "", "", m)
-              }
-              case Failure(e) =>
-                throw new IllegalArgumentException(s"Couldn't create SpecValue from:\n($k1, $k2, ${buffer.trim})")
-            }
-          }
-          else {
-            if (accum.contains(k1))
-              parse(t, numparentheses, numsquote, numdquote, level - 1, "", "", "", accum)
-            else
-              parse(
-                t, numparentheses, numsquote, numdquote, level - 1,
-                "", "", "", accum + (k1 -> Map[String, SpecValue]())
-              )
-          }
-        }
-        else if ((h == '(' | h == ')') & numsquote % 2 == 0 & numdquote % 2 == 0)
-          parse(t, numparentheses + 1, numsquote, numdquote, level, k1, k2, buffer + h, accum)
-        else if ((h == '\n' | h == '\r' | h == ' ') & level == 0) 
-          parse(t, numparentheses, numsquote, numdquote, level, k1, k2, buffer, accum)
-        else if ((h == '\n' | h == '\r') & (numparentheses % 2 != 0 | numsquote % 2 != 0 | numdquote % 2 != 0)) 
-          parse(t, numparentheses, numsquote, numdquote, level, k1, k2, buffer + " ", accum)
-        else if (h == '\n' | h == '\r') {
-          if (buffer.trim != "") {
-            val spec: Try[SpecValue] = Validator.specValue(k1, k2, buffer.trim)
-            spec match {
-              case Success(s) => {
-                val m =
-                  if (accum.contains(k1)) accum + (k1 -> (accum(k1) + (k2 -> s)))
-                  else accum + (k1 -> Map[String, SpecValue](k2 -> s))
-                parse(t, numparentheses, numsquote, numdquote, level, k1, "", "", m)
-              }
-              case Failure(e) => 
-                throw new IllegalArgumentException(s"Couldn't create SpecValue from:\n($k1, $k2, ${buffer.trim})\n")
-            }
-          }
-          else 
-            parse(t, numparentheses, numsquote, numdquote, if (h == '}') level - 1 else level, k1, k2, buffer, accum)
-        }
-        else if (h == '=') 
-          parse(t, numparentheses, numsquote, numdquote, level, k1, buffer.trim.toLowerCase, "", accum)
-        else if (h == '\'' | h == '"') {
-          val squote = if (h == '\'') numsquote + 1 else numsquote
-          val dquote = if (h == '"') numdquote + 1 else numdquote
-          parse(t, numparentheses, squote, dquote, level, k1, k2, buffer, accum)
-        }
-        else 
-          parse(t, numparentheses, numsquote, numdquote, level, k1, k2, buffer + h, accum)
-      }
+  def fromString(name: String, body: String): Try[Specification] = Try {
+    SpecificationParser.parse(body) match {
+      case Success(specs) => Specification(name, specs)
+      case Failure(e) => throw e
     }
-
-    Try({
-      val specs = parse(
-        body.toList, 0, 0, 0, 0, "", "", "",
-        Map[String, Map[String, SpecValue]]()
-      )
-
-      Specification(name, specs)
-    })
   }
 
   def fromFile(name: String, file: String): Try[Specification] = {
     val body = sourceFromPath(file).getLines().mkString("\n")
     fromString(name, body)
+  }
+
+  def fromFile(file: String): Try[Specification] = {
+    val fileName = new File(file).getName
+    val end = fileName.lastIndexOf(".")
+    val name = fileName.toLowerCase().replaceAll("\\.", "_").replaceAll(" ", "_")
+    fromFile(if (end == -1) name else name.take(end), file)
   }
 
   def fromFile(name: String, file: File): Try[Specification] = fromFile(name, file.toString)

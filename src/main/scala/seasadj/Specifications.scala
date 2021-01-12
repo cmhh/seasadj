@@ -216,115 +216,42 @@ case object Specifications {
    *
    * @param body JSON string
    */
-  def fromJSONString(body: String): Try[Specifications] = {
-    @scala.annotation.tailrec
-    def parse(s: List[Char], level: Int,
-              ndquote: Int, nsquote: Int, numbracket: Int,
-              name: String, spec: String, param: String,
-              specbuff: Map[String, String], valbuff: String,
-              accum: IndexedSeq[(String, String, Map[String, String])]):
-              IndexedSeq[(String, String, Map[String, String])] = s match {
-      case Nil => {
-        if (accum.size == 0) throw new Exception("Empty specifications.")
-        else accum
-      }
-      case h::t => {
-        val inside = (ndquote % 2 != 0) | (nsquote % 2 != 0)
-        if (List('\n', '\r').contains(h) | (!inside & h == ' '))
-          parse(t, level, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff, accum)
-        else if (h == ':' & !inside) {
-          if (level == 1)
-            parse(t, level, ndquote, nsquote, numbracket, valbuff, spec, param, specbuff, "", accum)
-          else if (level == 2)
-            parse(t, level, ndquote, nsquote, numbracket, name, valbuff, param, specbuff, "", accum)
-          else if (level == 3)
-            parse(t, level, ndquote, nsquote, numbracket, name, spec, valbuff, specbuff, "", accum)
-          else sys.error("Invalid input.")
-        }
-        else if (h == ',' & !inside & (numbracket % 2 == 0)) {
-          if (valbuff == "null"){
-            parse(
-              t, level, ndquote, nsquote, numbracket, name, "", "", 
-              Map[String, String](), "", accum :+ (name, spec, specbuff)
-            )
-          }
-          else if (level == 3)
-            parse(
-              t, level, ndquote, nsquote, numbracket, name, spec, "",
-              specbuff + (param -> valbuff), "", accum
-            )
-          else
-            parse(t, level, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff, accum)
-        }
-        else if (h == '{' & !inside)
-          parse(t, level + 1, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff, accum)
-        else if (h == '}' & !inside) {
-          if (valbuff == "null"){
-            parse(
-              t, level - 1, ndquote, nsquote, numbracket, name, "", "", 
-              Map[String, String](), "", accum :+ (name, spec, specbuff)
-            )
-          }
-          else if (level == 1 | level == 2)
-            parse(
-              t, level - 1, ndquote, nsquote, numbracket, "", "", "",
-              Map[String, String](), "",
-              accum
-            )
-          else if (level == 3)
-            parse(
-              t, level - 1, ndquote, nsquote, numbracket, name, "", "",
-              Map[String, String](), "",
-              accum :+ (name, spec, specbuff + (param -> valbuff))
-            )
-          else
-            sys.error("Invalid input.")
-        }
-        else if (h == '\\')
-          parse(t.tail, level, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff + h + t.head, accum)
-        else if (h != ']' & numbracket % 2 != 0)
-          parse(t, level, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff + h, accum)
-        else if (h == '\'' & ndquote % 2 == 0)
-          parse(t, level, ndquote, nsquote + 1, numbracket, name, spec, param, specbuff, valbuff, accum)
-        else if (h == '"' & nsquote % 2 == 0)
-          parse(t, level, ndquote + 1, nsquote, numbracket, name, spec, param, specbuff, valbuff, accum)
-        else if (h == '[' & !inside)
-          parse(t, level, ndquote, nsquote, numbracket + 1, name, spec, param, specbuff, valbuff + h, accum)
-        else if (h == ']' & !inside)
-          parse(t, level, ndquote, nsquote, numbracket + 1, name, spec, param, specbuff, valbuff + h, accum)
-        else
-          parse(t, level, ndquote, nsquote, numbracket, name, spec, param, specbuff, valbuff + h, accum)
-      }
-    }
+  def fromJSONString(body: String): Try[Specifications] = Try {
+    import upickle.default._
 
-    def toSpecifications(x: IndexedSeq[(String, String, Map[String, String])]): Specifications = {
-      val names = x.map(_._1).distinct
-      Specifications(
+    val parsed = ujson.read(body)
+
+    val specs: IndexedSeq[Specification] = parsed match {
+      case o: ujson.Obj => 
+        val names: IndexedSeq[String] = o.obj.keys.toVector
         names.map(name => {
-          val sub: IndexedSeq[(String, String, Map[String, String])] = x.filter(_._1 == name)
-          val specNames: IndexedSeq[String] = sub.map(_._2).distinct
-          val specs: Specs = specNames.map(specName => {
-            val params: List[(String, String)] = sub.filter(_._2 == specName).map(_._3)(0).toList
-            val specVals: Spec = params.map(param => {
-              val value = Validator.specValue(specName, param._1, param._2, JSON)
-              (param._1 -> value.get)
-            }).toMap
-            (specName -> specVals)
-          }).toMap
-          Specification(name, specs)
+          val s: Map[String, Map[String, SpecValue]] = parsed(name) match {
+            case o: ujson.Obj => 
+              val specs: List[String] = o.obj.keys.toList.map(_.toString)
+              specs.map(spec => {
+                val params: Map[String, SpecValue] = parsed(name)(spec) match {
+                  case o: ujson.Obj => 
+                    val params: List[String] = o.obj.keys.toList.map(_.toString)
+                    params.map(param => {
+                      val specVal: SpecValue = Validator.specValue(spec, param, parsed(name)(spec)(param).toString, JSON) match {
+                        case Success(specval) => specval
+                        case Failure(e) => throw e
+                      }
+                      (param -> specVal)
+                    }).toMap
+                  case ujson.Null => Map.empty
+                  case _ => throw new IllegalArgumentException(s"""Unexpected input for "$name" -> "$spec"""")
+                }
+                (spec -> params)
+              }).toMap
+            case _ => throw new IllegalArgumentException(s"""Unexpected input for series "$name."""")
+          }
+          Specification(name, s)
         })
-      )
+      case _ => throw new IllegalArgumentException("Input must be an object.")
     }
 
-    Try({
-      val parsed = parse(
-        s = body.toList,
-        level = 0, ndquote = 0, nsquote = 0, numbracket = 0,
-        name = "", spec = "", param = "", specbuff = Map[String, String](), valbuff = "",
-        accum = IndexedSeq[(String, String, Map[String, String])]()
-      )
-      toSpecifications(parsed)
-    })
+    Specifications(specs)    
   }
 
   /**

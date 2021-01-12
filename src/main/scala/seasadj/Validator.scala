@@ -4,8 +4,32 @@ import scala.util.{Try, Success, Failure}
 
 /**
  * Singleton object used to validate specifications.
+ * 
+ * Based on the X13-ARIMA-SEATS documentation, an effort has been made to 
+ * ensure that only valid combinations of specs and variables are permitted,
+ * but some of the docs may have been misinterpreted during implementation.
+ * Values are often checked, but usually only where a SpecType is defined.
+ * Many spec values are simply permitted as Strings with no additional
+ * validation, but this will likely improve over time.
  */
 object Validator {
+  /**
+    * Validate [[Spec]].
+    *
+    * @param name Specification name, e.g. series, x11.
+    * @param spec [[Spec]], e.g. ("sigmalim" -> SpecSigmaLim("[1.8, 2.8]"))
+    * @return
+    */
+  def validateSpec(name: String, spec: Spec): Boolean = true
+
+  /**
+    * 
+    *
+    * @param specs
+    * @return
+    */
+  def validateSpecs(specs: Specs): Boolean = true
+
   /**
    * Validate [[Specification]].
    *
@@ -18,9 +42,8 @@ object Validator {
    *
    * @param specs specifications
    */
-  def validate(specs: Specifications): Boolean = {
+  def validate(specs: Specifications): Boolean = 
     !specs.map(spec => validate(spec)).contains(false)
-  }
 
   /**
    * Return a [[SpecValue]] given [[String]] input.
@@ -35,7 +58,7 @@ object Validator {
       if (!RULES.contains(spec.toLowerCase)) {
         throw new IllegalArgumentException(s"Unknown spec, '$spec'.")
       } else if (!RULES(spec.toLowerCase).contains(parameter.toLowerCase)) {
-        throw new IllegalArgumentException(s"'$parameter' invalid for spec '$spec'.")
+        throw new IllegalArgumentException(s"'$parameter' is not an invalide parameterfor spec '$spec'.")
       } else {
         val specType = RULES(spec)(parameter)
         specType match {

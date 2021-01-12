@@ -35,7 +35,7 @@ case object SpecBool {
 case class SpecCompType(value: String) extends SpecValue {
   require(
     List("none", "add", "sub", "mult", "div").contains(value.toLowerCase),
-   "Composite type must be one of 'none', 'add', 'sub', 'mult', or 'div'"
+   s"""Composite type must be one of 'none', 'add', 'sub', 'mult', or 'div' (got '${value.toLowerCase}')."""
    )
 
   override def toString = value.toLowerCase
@@ -43,9 +43,13 @@ case class SpecCompType(value: String) extends SpecValue {
 }
 
 case object SpecCompType {
-  def apply(value: String, inputType: InputType = STRING): SpecCompType = SpecCompType(value)
+  def apply(value: String, inputType: InputType = STRING): SpecCompType = inputType match {
+    case STRING => fromString(value)
+    case JSON => fromJSON(value)
+  }
+
   def fromString(value: String): SpecCompType = SpecCompType(value)
-  def fromJSON(value: String): SpecCompType = SpecCompType(value)
+  def fromJSON(value: String): SpecCompType = SpecCompType(StringUtils.unquote(value))
 
   val NONE = SpecCompType("none")
   val ADD = SpecCompType("add")
@@ -83,7 +87,7 @@ case object SpecOrder {
   }
 
   def fromJSON(value: String): SpecOrder = {
-    val vals = value
+    val vals = StringUtils.unquote(value)
       .replace("[", "").replace("]", "")
       .replace(" ", "")
       .trim.split(',')
@@ -112,11 +116,7 @@ case object SpecString {
   }
   def fromString(value: String): SpecString = SpecString(value.trim)
 
-  def fromJSON(value: String): SpecString = {
-    val v = value.trim
-    if (v.take(1) == "\"" & v.takeRight(1) == "\"") SpecString(v.drop(1).dropRight(1))
-    else SpecString(v)
-  }
+  def fromJSON(value: String): SpecString = SpecString(StringUtils.unquote(value.trim))
 }
 
 /**
@@ -158,63 +158,62 @@ case object SpecStringArray {
     case JSON => fromJSON(value)
   }
 
+  /**
+    * Create array of [[String]]s from [[String]]
+    * 
+    * Hot mess.  Simplify using regex at some point.
+    *
+    * @param value input
+    * @return [[org.cmhh.seasadj.SpecStringArray]]
+    */
   def fromString(value: String): SpecStringArray = {
-    def opt(s: String): Option[String] = if (s.trim.size == 0) None else Some(s.trim)
+    val v = value
+      .trim
+      .replaceAll(",\\s*,", ", NULL,")
+      .replaceAll(",\\s*\\)", ", NULL\\)")
 
-    @scala.annotation.tailrec
-    def fromString_(
-      s: List[Char], numdquote: Int, numsquote: Int, comma: Boolean, buffer: String, accum: List[Option[String]]
-    ): List[Option[String]] = s match {
-      case Nil => if (!comma & buffer.trim == "") accum else accum :+ opt(buffer)
-      case h::t => {
-        val outside = numdquote % 2 == 0 & numsquote % 2 == 0
-        if ((h == '(' | h == ')') & outside) 
-          fromString_(t, numdquote, numsquote, comma, buffer, accum)
-        else if (h == '\n' | h == '\r')
-          fromString_(t, numdquote, numsquote, comma, buffer, accum)
-        else if (h == ',' & outside)
-          fromString_(t, numdquote, numsquote, true, "", accum :+ opt(buffer))
-        else if (h == ' ' & outside) {
-          if (buffer.trim != "")
-            fromString_(t, numdquote, numsquote, false, "", accum :+ opt(buffer))
-          else
-            fromString_(t, numdquote, numsquote, comma, buffer, accum)
-        }
-        else if (h == '"' & numsquote % 2 == 0) {
-          fromString_(t, numdquote + 1, numsquote, false, buffer, accum)
-        }
-        else if (h == '\'' & numdquote % 2 == 0) {
-          fromString_(t, numdquote, numsquote + 1, false, buffer, accum)
-        }
-        else
-          fromString_(t, numdquote, numsquote, comma, buffer + h, accum)
-      }
+    val quoted = """(?:'[a-zA-Z0-9]+[a-zA-Z0-9", -]*')|(?:"[a-zA-Z0-9]+[a-zA-Z0-9', -]*")"""
+    val nonquoted = "[a-zA-Z0-9]+[a-zA-Z0-9-]*"
+    val ok = s"""(?:$quoted)|(?:$nonquoted)"""
+
+    if (v.take(1) != "(" | v.takeRight(1) != ")")
+      if (v.matches(quoted)) SpecStringArray(StringUtils.unquote(v))
+      else throw new IllegalArgumentException(s"String cannot be parsed into SpecStringArray ('${value}').")
+    else {
+      val arr = ok.r.findAllIn(v).toList.map(s => StringUtils.unquote(s)).map(s => if (s == "NULL") None else Some(s))
+      SpecStringArray(arr: _*)
     }
-    SpecStringArray(fromString_(value.toList, 0, 0, false, "", List[Option[String]]()): _*)
   }
 
+  /**
+    * Create array of [[String]]s from JSON string
+    * 
+    * Hot mess.  Simplify using regex / ujson.read at some point.
+    *
+    * @param value input
+    * @return [[org.cmhh.seasadj.SpecStringArray]]
+    */
   def fromJSON(value: String): SpecStringArray = {
-    def fromJSON_(s: List[Char], numquote: Int, buffer: String, accum: Array[Option[String]]): Array[Option[String]] = s match {
-      case Nil => accum
-      case h::t => {
-        if (h == '[' & (numquote % 2 == 0))
-          fromJSON_(t, numquote, buffer, accum)
-        else if ((h == ',' | h == ']') & (numquote % 2 == 0))
-          fromJSON_(t, numquote, "", if (buffer.trim.size == 0) accum else accum :+ Some(buffer.trim))
-        else if (h == ' ' & (numquote % 2 == 0))
-          fromJSON_(t, numquote, buffer, accum)
-        else if (h == '"')
-          fromJSON_(t, numquote + 1, buffer, accum)
-        else if (numquote % 2 == 0)
-          if (h == 'n' & t.take(3) == List('u', 'l', 'l')) 
-            fromJSON_(t.drop(3), numquote, "", accum :+ None)
-          else 
-            sys.error(s"""Invalid input for SpecStringArray ("$value").""")
-        else
-          fromJSON_(t, numquote, buffer + h, accum)
+    import upickle.default._
+
+    val v = value.trim    
+    val quoted = """(?:'[a-zA-Z0-9]+[a-zA-Z0-9" -]*')|(?:"[a-zA-Z0-9]+[a-zA-Z0-9' -]*")"""
+
+    if (v.take(1) != "[" | v.takeRight(1) != "]")
+      if (v.matches(quoted)) SpecStringArray(StringUtils.unquote(v))
+      else throw new IllegalArgumentException(s"String cannot be parsed into SpecStringArray ('${value}').")
+    else {
+      ujson.read(v) match {
+        case a: ujson.Arr => 
+          val arr = a.arr.toList.map(x => x match {
+            case ujson.Null => None
+            case s: ujson.Str => Some(s.str)
+            case _ => throw new IllegalArgumentException(s"String cannot be parsed into SpecStringArray ('${value}').")
+          })
+          SpecStringArray(arr: _*)
+        case _ => throw new IllegalArgumentException(s"String cannot be parsed into SpecStringArray ('${value}').")
       }
     }
-    SpecStringArray(fromJSON_(value.toList, 0, "", Array[Option[String]]()).toList: _*)
   }
 }
 
@@ -232,7 +231,7 @@ case class SpecInt(value: Int) extends SpecValue {
 case object SpecInt {
   def apply(value: String, inputType: InputType = STRING): SpecInt = SpecInt(value.toInt)
   def fromString(value: String): SpecInt = SpecInt(value.toInt)
-  def fromJSON(value: String): SpecInt = SpecInt(value.toInt)
+  def fromJSON(value: String): SpecInt = SpecInt(StringUtils.unquote(value.trim).toInt)
 }
 
 /**
@@ -249,7 +248,7 @@ case class SpecNum(value: Double) extends SpecValue {
 case object SpecNum {
   def apply(value: String, inputType: InputType = STRING): SpecNum = SpecNum(value.toDouble)
   def fromString(value: String): SpecNum = SpecNum(value.toDouble)
-  def fromJSON(value: String): SpecNum = SpecNum(value.toDouble)
+  def fromJSON(value: String): SpecNum = SpecNum(StringUtils.unquote(value.trim).toDouble)
 }
 
 /**
@@ -350,7 +349,7 @@ case object SpecNumArray {
 
   def fromJSON(value: String): SpecNumArray = {
     new SpecNumArray(
-      value
+      StringUtils.unquote(value.trim)
         .replace("[","").replace("]","")
         .replaceAll("\\s+", "")
         .split(',')
@@ -426,7 +425,7 @@ case object SpecSpan {
   }
 
   def fromJSON(value: String): SpecSpan = {
-    val x = value
+    val x = StringUtils.unquote(value.trim)
       .replace("[","").replace("]","")
       .split(',')
       .map(_.trim)
@@ -457,7 +456,7 @@ case object SpecDate {
   }
 
   def fromString(value: String): SpecDate = SpecDate(Date(value))
-  def fromJSON(value: String): SpecDate = SpecDate(Date(value))
+  def fromJSON(value: String): SpecDate = SpecDate(Date(StringUtils.unquote(value.trim)))
 }
 
 /**
@@ -493,7 +492,7 @@ case object SpecARMA {
 
   def fromJSON(value: String): SpecARMA = {
     SpecARMA(
-      value
+      StringUtils.unquote(value.trim)
         .replace("[", "").replace("]","")
         .split("(,|\\s+)")
         .map(c => c.trim.toLowerCase match {
@@ -532,5 +531,5 @@ case object SpecARIMA {
     SpecARIMA(r.findAllIn(value).toList.map(Model.fromString))
   }
 
-  def fromJSON(value: String): SpecARIMA = fromString(value.replaceAll("\"", ""))
+  def fromJSON(value: String): SpecARIMA = fromString(StringUtils.unquote(value.trim).replaceAll("\"", ""))
 }
