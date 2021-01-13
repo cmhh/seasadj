@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV SHELL /bin/bash
-ENV SBT_VERSION 1.3.13
+ENV SBT_VERSION 1.4.5
 
 COPY src /seasadj/src
 COPY project/assembly.sbt /seasadj/project/assembly.sbt

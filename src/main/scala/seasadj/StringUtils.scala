@@ -12,4 +12,7 @@ object StringUtils {
       s.drop(1).dropRight(1)
     else 
       s
+  
+  def escape(s: String): String = 
+    s.replace("\"", "\\\"").replace("\n", "\\n")
 }

@@ -10,6 +10,8 @@ target
 .vscode
 /RUNNING_PID
 examples
+!examples/airline
+!examples/hlfsemp
 fort.16
 **/.access^
 **/.attribute^

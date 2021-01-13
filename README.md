@@ -29,6 +29,8 @@ And, of course, X13-ARIMA-SEATS itself must be present, and in the search path. 
 
 [https://www.census.gov/ts/x13as/unix/x13ashtmlall_V1.1_B39.tar.gz](https://www.census.gov/ts/x13as/unix/x13ashtmlall_V1.1_B39.tar.gz)
 
+On a Linux platform, it is relatively easy to build X13-ARIMA-SEATS from source, and a utility script, [buildx13.sh](buildx13.sh), is provided which will do this, storing the resulting binary in `${HOME}/.local/bin`.
+
 Alternatively, the service is easily containerised, and a simple example Dockerfile is included.  To build the container, ensure `seasadj.jar` is copied to the `docker` folder, and run:
 
 ```bash
@@ -41,7 +43,7 @@ To run the service via Docker, simply run:
 docker run -td --rm --name seasadj -p 9001:9001 seasadj
 ```
 
-As a further alternative still, a `Dockerfile` is also included in the root directory which can be also used to build a container which can be run in the same way as above.  This container differs in that the required jar file is built as part of the Docker build.  The build will take longer, but it is also easier for those without experience with sbt.  It is also considerably smaller than the one above, 464MB vs 2.06GB, though there's probably ways to make the latter smaller.  To build:
+As a further alternative still, a `Dockerfile` is also included in the root directory which can be also used to build a container which can be run in the same way as above.  This container differs in that the required jar file is built as part of the Docker build.  The build will take _much_ longer, but it is also easier for those without experience with sbt.  To build:
 
 ```bash
 docker build -t seasadj .
@@ -103,7 +105,7 @@ The series could then be adjusted at the terminal by running:
 x13ashtml testairline
 ```
 
-or, if we want to redirect the outputs:
+Or, if we want to redirect the outputs:
 
 ```bash
 x13ashtml -i testairline -o o/testairline
@@ -164,6 +166,168 @@ date	testairline.d11
 196011	+0.490312020671497E+03
 196012	+0.491205666986636E+03
 ~~~
+
+## Seasonal Adjustment as a Service
+
+The primary motivation here was to provide a simple wrapper for X13-ARIMA-SEATS, usable from any client with HTTP support.  Additionally, the adjustments themselves are completely stateless&ndash;we send data to the service, and the service responds with adjusted data, but the server does not retain either of the input or output.
+
+### Adjusting a series
+
+To adjust a series, we provide a JSON representation of our specification in the request body.  For example:
+
+```bash
+curl \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d @examples/airline/airline.json localhost:9001/seasadj/adjust \
+  --compressed --output -
+```
+
+The output will be relaively large, while still being quite readable.  For example, the above will yield output laid out as follows:
+
+```json
+{
+  "airline": {
+    "series": {
+      "ador": {...},
+      "ao": {...},
+      ...
+      "trn": {...},
+      "xtrm": {...}
+    },
+    "diagnostics": {...}
+  }
+}
+```
+
+`series` contains all of the output produced by X13-ARIMA-SEATS that is a valid time series, and can be univariate or multivariate.  For example, the trend series will look as follows:
+
+```json
+"trn": {
+  "date": ["1952.01", "1952.02", ...,"1960.11", "1960.12"],
+  "value": [190.982678228513, 188.515085239703,... , 489.755759131541, 491.11387257342]
+}
+```
+
+while regression factors will look as follows:
+
+```json
+"fct": {
+  "date":["1961.01", "1961.02", ..., "1961.11","1961.12"],
+  "value":[
+    [442.417804625906,418.958393743495,467.19081601655],
+    [412.125296290046,381.626024600631,445.062047379767],
+    ...
+    [420.602564274142,351.208361194933,503.708159088486],
+    [477.081007063438,395.206825653025,575.916893450857]
+  ]
+}
+```
+
+`diagnostics` is an object containing key-value pairs for each summary or diagnostic measure found in the usual `xdg`/`udg` file.  Some diagnostics will be parsed into numeric arrays, but many will be left as strings.  For example, if the result was stored as an object called `ap`:
+
+```javascript
+> ap["airline"]["diagnostics"]["f3.qm2"]
+0.18
+```
+
+Note the date representation can be made more compact by adding a query parameter `/?allDates=false`, in which case dates are represented by just the starting date and frequency (so, while smaller, clients will have to do some work to restore the full sequence if needed for plotting, for example).  For example, `trn` now looks as follows:
+
+```json
+"trn": {
+  "start": "1952.01", "period":12,
+  "value":[190.982678228513, 188.515085239703, ..., 489.755759131541, 491.11387257342]
+}
+```
+
+Finally, we can omit series we are not interested in by adding a query paramter, `save`, which takes a comma separated list of series.  For example, to include onl the original (`ori`), trend (`trn`), and seasonally adjusted (`sa`) series, we'd add `/?save=ori,trn,sa`.  This reduces output size, but since each series must be read from a temporary file on the server, it also reduces the overall response time.  
+
+### Batch adjustment
+
+The adjustment service expects a JSON object, and that object can include any number of series&ndash;the earlier example just contained one.  But consider the following specification:
+
+```json
+{
+  "memp": {
+    "series": {
+      "data": [953.8, 944.0, 936.2, 938.7, 946.1, 933.7, 931.1, 932.4, 915.8, 899.3, 879.3, 889.3, 879.3, 864.3, 858.9, 874.0, 869.6, 863.2, 856.6, 863.9, 852.6, 843.9, 832.4, 841.2, 845.7, 844.0, 835.1, 849.4, 854.0, 859.2, 856.7, 879.2, 881.9, 890.7, 896.2, 916.4, 929.6, 934.5, 936.7, 958.1, 957.7, 957.4, 959.4, 971.6, 967.8, 964.3, 960.7, 973.1, 966.6, 952.3, 944.0, 954.4, 958.7, 952.7, 955.9, 984.1, 979.3, 970.7, 976.6, 998.4, 997.4, 989.0, 998.8, 1019.2, 1036.2, 1027.8, 1027.3, 1048.0, 1050.2, 1045.5, 1055.9, 1072.2, 1081.2, 1088.0, 1091.2, 1121.3, 1114.6, 1106.5, 1118.8, 1141.1, 1139.8, 1141.8, 1139.5, 1161.1, 1158.5, 1155.4, 1157.5, 1170.3, 1150.3, 1154.4, 1145.2, 1172.5, 1141.5, 1142.6, 1116.1, 1137.2, 1139.5, 1133.4, 1145.3, 1150.8, 1155.7, 1149.2, 1151.4, 1161.6, 1162.1, 1148.8, 1135.7, 1141.5, 1157.0, 1156.8, 1169.4, 1198.5, 1208.1, 1213.4, 1212.6, 1242.5, 1254.6, 1253.8, 1240.0, 1270.7, 1283.8, 1311.7, 1323.9, 1348.9, 1370.0, 1359.5, 1378.5, 1399.9, 1404.5, 1401.2, 1406.8, 1410.0, 1418.0, 1414.3, 1421.3, 1442.4, 1457.8, 1446.6, 1437.3],
+      "period": 4,
+      "title": "memp",
+      "comptype": "add",
+      "start": 1986.01,
+      "save": ["b1"]
+    },
+    "x11": {
+      "mode": "mult",
+      "sigmalim": [1.8, 2.8],
+      "save": ["c17", "d8", "d9", "d10", "d11", "d12", "d13"],
+      "print": ["default", "f3", "qstat"]
+    }
+  },
+  "femp": {
+    "series": {
+      "data": [672.2, 671.7, 674.3, 682.8, 683.2, 685.5, 685.4, 697.6, 682.9, 676.9, 667.7, 675.5, 655.5, 648.9, 650.8, 662.4, 664.2, 677.5, 669.2, 674.4, 666.6, 667.6, 663.4, 668.9, 662.7, 672.6, 666.9, 679.1, 671.5, 674.5, 686.9, 697.0, 699.8, 707.2, 716.2, 736.7, 732.1, 741.0, 750.8, 762.2, 764.6, 777.8, 787.4, 784.4, 778.0, 783.1, 784.1, 789.4, 779.9, 777.5, 786.6, 792.5, 795.6, 796.6, 802.6, 816.5, 807.5, 802.8, 822.6, 838.4, 829.7, 840.6, 839.3, 864.8, 859.3, 865.0, 868.5, 886.1, 878.2, 885.6, 907.2, 918.4, 910.8, 906.7, 931.2, 960.8, 947.2, 953.9, 969.9, 977.3, 979.8, 988.6, 984.1, 991.0, 999.3, 1005.1, 997.0, 1027.7, 995.5, 1017.4, 1024.2, 1039.0, 1013.8, 1005.7, 1007.4, 1015.4, 1007.4, 1007.4, 1008.7, 1022.5, 1026.1, 1028.7, 1024.0, 1042.4, 1034.4, 1037.1, 1035.1, 1025.0, 1042.3, 1040.8, 1055.2, 1074.2, 1079.4, 1070.4, 1087.9, 1119.1, 1116.0, 1105.8, 1102.4, 1131.1, 1140.1, 1160.0, 1166.2, 1196.0, 1196.5, 1189.1, 1215.1, 1237.1, 1237.5, 1240.9, 1259.0, 1249.4, 1262.2, 1265.9, 1272.2, 1284.2, 1287.6, 1273.0, 1263.3],
+      "period": 4,
+      "title": "femp",
+      "comptype": "add",
+      "start": 1986.01,
+      "save": ["b1"]
+    },
+    "x11": {
+      "mode": "mult",
+      "sigmalim": [1.8, 2.8],
+      "print": ["default", "f3", "qstat"],
+      "save": ["c17", "d8", "d9", "d10", "d11", "d12", "d13"]
+    }
+  },
+  "emp": {
+    "composite": {
+      "title": "'emp'"
+    },
+    "x11": {
+      "mode": "mult",
+      "sigmalim": [1.8, 2.8],
+      "print": ["default", "f3", "qstat"],
+      "save": ["c17", "d8", "d9", "d10", "d11", "d12", "d13"]
+    }
+  }
+}
+```
+
+This is a valid input containing 3 series, one of which is a composite (that is, the last of the 3 is a series implicitly defined by adding the first two), and the service will handle this just fine.
+
+### Creating and validating inputs 
+
+The service provides several endpoints that can be useful when working with specifications.  Specifically:
+
+endpoint                     | function
+-----------------------------|--------------------------------------------------------------------
+`/seasadj/spec/validateSPC`  | Confirm if a text string is valid as a traditional SPC file or not.
+`/seasadj/spec/validateJSON` | Confirm if a text string is valid as a JSON specification or not.
+`/seasadj/spec/toJSON/:name` | Convert a SPC text string to a valid JSON specification.
+`/seasadj/spec/toSPC`        | Convert a JSON specification to JSON object with several SPC text strings.
+
+To test if the content of a SPC file is valid, we pass it to the `/seasadj/spec/validateSPC` endpoint.  A repsonse code of 200 should be returned with an appropriate message:
+
+![](img/validatespc01.png)
+
+![](img/validatespc02.png)
+
+Similarly, to test a JSON string is a valid specification object we can use the `/seasadj/spec/validateJSON` endpoint:
+
+![](img/validatejson01.png)
+
+We can convert the content of a single SPC file to JSON via the `/seasadj/spec/toJSON/:name` endpoint:
+
+![](img/tojson01.png)
+
+In this case, failure will yield a status code of 422 (Unproccessable Entity) if the provided SPC appears invalid, and 500 (Internal Server Error) if the adjustment otherwise fails.  
+
+Finally, we can convert a JSON specifications object via the `/seasadj/spec/toSPC` endpoint.  In this case the output will be a JSON object containing content appropriate for a SPC file for each individual specification found:
+
+![](img/tospc01.png)
+
+
 
 ## Libary Overview
 
@@ -305,119 +469,6 @@ Here, we account for the metafile by including the series in the array in the sa
 ## Mapping X13-ARIMA-SEATS Outputs
 
 Internally, all adjustments are run with the `-g` flag, which means most tables are saved, as well as ensuring that diagnostics are written to an `xdg` or `udg` file.  Currently, the result of an adjustment is stored in a case class called `Adjustment` which has members `series` and `diagnostics`.  `series` is a collection containing all output that can be imported as a `TimeSeries` (irregular component, seasonally adjusted series, trend, etc.), while `diagnostics` is a hashmap containing all the measures found in the `xdg` or `udg` files&ndash;values are stored as numeric or integer scalars or arrays if possible, and strings otherwise.
-
-## Seasonal Adjustment as a Service
-
-To start the seasonal adjustment service, simply run:
-
-```bash
-java -cp seasadj.jar org.cmhh.seasadj.Service
-```
-
-The service will then be accessible at `localhost:9001`.  The service consists of a single route `/seasadj/adjust`.  The method is POST, of course, and a valid JSON string is expected as the message body.  
-
-Optionally, a query parameter, `save`, can be attached containing a comma-delimited string comprising the set of time series outputs one wishes to retain.  
-
-Also optionally, a Boolean query parameter, `allDates`, can be added which controls how dates for time series output are handled.  If set to `true` (the default), then time series outputs will consist of an array containing a sequence of dates, and an array containing the time series values.  If set to `false`, then the time series outputs will consist of a single array containing the time series values, as well as the start date and time series frequency as single values.  The latter option will reduce the size of output by about one third in practice, so might be useful.  However, users will need to construct the full sequence of dates for themselves if the data is to be plotted, say.  
-
-For example, if running an X11 adjustment, and one wishes to retain just the seasonally adjusted and trend outputs, and include just the starting date for each component (rather than an array of dates), one would use the following:
-
-```
-/adjust?save=sa,trn&allDates=false
-```
-
-By way of a simple example, consider the following JSON input:
-
-```json
-{
-  "ap": {
-    "series": {
-      "title": "Air Passengers",
-      "start": 1958.01,
-      "data": [
-        340.0, 318.0, 362.0, 348.0, 363.0, 435.0, 
-        491.0, 505.0, 404.0, 359.0, 310.0, 337.0, 
-        360.0, 342.0, 406.0, 396.0, 420.0, 472.0, 
-        548.0, 559.0, 463.0, 407.0, 362.0, 405.0, 
-        417.0, 391.0, 419.0, 461.0, 472.0, 535.0, 
-        622.0, 606.0, 508.0, 461.0, 390.0, 432.0
-      ]
-    },
-    "x11": null
-  }
-}
-```
-
-The (highly edited) output for this would then be:
-
-```json
-{
-    "ap": {
-        "series": {
-            "sa": {
-                "start": "1958.01",
-                "period": 12,
-                "value": [
-                    376.3347856204,
-                    375.901716365255,
-                    372.806470178912,
-                    ...
-                    497.229501731713,
-                    489.938510303138,
-                    495.711931582315
-                ]
-            },
-            "trn": {
-                "start": "1958.01",
-                "period": 12,
-                "value": [
-                    376.286928422183,
-                    373.87619471181,
-                    372.779077102035,
-                    ...
-                    490.745733941975,
-                    493.436466687849,
-                    496.136629337142
-                ]
-            }
-        },
-        "diagnostics": {
-            "adjtot": "no",
-            "altfreq": "no",
-            "build": 39,
-            "chsd.e5": 11.415133087211,
-            "chsd.e6": 3.2434651135914,
-            "chsd.e7": 1.0076702823301,
-            "chsd.e8": 11.415133087211,
-            ...
-            "time": "12.12.12",
-            "trendma": "default",
-            "version": 1.1,
-            "x11otl": "stderr",
-            "x11regress": "no"
-        }
-    }
-}
-```
-
-We can adjust this at the terminal by calling, for example:
-
-```bash
-curl \
-  --data '<json input>' \
-  localhost:9001/seasadj/adjust \
-  --compressed --output -
-```
-
-Alternatively, if the input is stored in a JSON file called `foo.json`:
-
-```bash
-curl \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -d @foo.json localhost:9001/seasadj/adjust \
-  --compressed --output -
-```
 
 ## Programmatic Examples
 

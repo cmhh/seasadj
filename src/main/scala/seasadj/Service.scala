@@ -92,15 +92,36 @@ object Service extends App with CORSHandler {
 
     val toJSON = (path("toJSON" / Segment)) { (name) =>
       entity(as[String]){ entity =>
-        complete(HttpEntity(
-          ContentTypes.`application/json`,
-          {
-            Specification.fromString(name, entity) match {
-              case Success(r) => r.toJSON
-              case Failure(e) => s"""{"result":"failed", "error":"${e.getMessage()}"}"""
-            }
-          }
-        ))
+        Specification.fromString(name, entity) match {
+          case Success(r) =>
+            val res = HttpEntity(ContentTypes.`application/json`, r.toJSON)
+            complete(res)
+          case Failure(e) =>
+            val res = HttpEntity(
+              ContentTypes.`application/json`,
+              s"""{"result":"failed", "error":"${e.getMessage()}"}"""
+            )
+            complete(StatusCodes.UnprocessableEntity -> res)
+        }
+      }
+    }
+
+    val toSPC = path("toSPC") {
+      entity(as[String]){ entity =>
+        Specifications.fromJSONString(entity) match {
+          case Success(r) =>
+            val res = HttpEntity(
+              ContentTypes.`application/json`, 
+              "{" + r.map(s => {s""""${s.name}":"${StringUtils.escape(s.toString)}""""}).mkString(",") + "}"
+            )
+            complete(res)
+          case Failure(e) =>
+            val res = HttpEntity(
+              ContentTypes.`application/json`,
+              s"""{"result":"failed", "error":"${e.getMessage()}"}"""
+            )
+            complete(StatusCodes.UnprocessableEntity -> res)
+        }
       }
     }
 
@@ -115,22 +136,29 @@ object Service extends App with CORSHandler {
           case Some(x) => x
         }
         entity(as[String]){ entity => 
-          encodeResponseWith(Gzip){ complete(
-            HttpEntity(
-              ContentTypes.`application/json`,
-              {
-                Specifications.fromJSONString(entity) match {
-                  case Success(x) => {
-                    Adjustor.adjust(x, save_) match {
-                      case Success(y) => y.toJSON(allDates_)
-                      case Failure(e) => throw AdjustmentFailedException("Adjustment failed.", e)
-                    }
-                  }
-                  case Failure(e) => throw ImportFailedException("Invalid input.", e)
-                }
+          Specifications.fromJSONString(entity) match {
+            case Success(x) => 
+              Adjustor.adjust(x, save_) match {
+                case Success(y) => 
+                  val res = HttpEntity(
+                    ContentTypes.`application/json`,
+                    y.toJSON(allDates_)
+                  )
+                  encodeResponseWith(Gzip)(complete(res))
+                case Failure(e) => 
+                  val res = HttpEntity(
+                    ContentTypes.`application/json`,
+                    s"""{"result":"failed", "error":"${e.getMessage()}"}"""
+                  )
+                  complete(StatusCodes.InternalServerError -> res)
               }
-            )
-          )}
+            case Failure(e) => 
+              val res = HttpEntity(
+                ContentTypes.`application/json`,
+                s"""{"result":"failed", "error":"${e.getMessage()}"}"""
+              )
+              complete(StatusCodes.UnprocessableEntity -> res)           
+          }
         }
       }
     }
@@ -140,7 +168,10 @@ object Service extends App with CORSHandler {
     pathPrefix("seasadj") { 
       corsHandler(
         post { 
-          routes.adjust ~ pathPrefix("spec")(routes.validateJSON ~ routes.validateSPC ~ routes.toJSON)
+          routes.adjust ~ 
+          pathPrefix("spec")(
+            routes.validateJSON ~ routes.validateSPC ~ routes.toJSON ~ routes.toSPC
+          )
         } ~
         get {
           routes.version

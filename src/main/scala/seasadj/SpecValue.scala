@@ -177,7 +177,8 @@ case object SpecStringArray {
     val ok = s"""(?:$quoted)|(?:$nonquoted)"""
 
     if (v.take(1) != "(" | v.takeRight(1) != ")")
-      if (v.matches(quoted)) SpecStringArray(StringUtils.unquote(v))
+      if (v.matches(quoted)) SpecStringArray(Some(StringUtils.unquote(v)))
+      else if (v.matches(nonquoted)) SpecStringArray(Some(v))
       else throw new IllegalArgumentException(s"String cannot be parsed into SpecStringArray ('${value}').")
     else {
       val arr = ok.r.findAllIn(v).toList.map(s => StringUtils.unquote(s)).map(s => if (s == "NULL") None else Some(s))
