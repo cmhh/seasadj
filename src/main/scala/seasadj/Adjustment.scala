@@ -10,7 +10,9 @@ import java.nio.file.Path
  * @param series map containing time series components such as trend, irregular, seasonal factors, and seasonally adjusted series
  * @param diagnostics map containing various diagnostics and summary statistics
  */
-case class Adjustment(name: String, series: Map[String, TimeSeries], diagnostics: Map[String, DiagnosticValue]) extends JSONOutput {
+case class Adjustment(
+  name: String, series: Map[String, TimeSeries], diagnostics: Map[String, DiagnosticValue]
+) extends JSONOutput {
   /**
    * Convert to JSON string.
    *
@@ -30,4 +32,9 @@ case class Adjustment(name: String, series: Map[String, TimeSeries], diagnostics
    * Convert to JSON string.
    */
   def toJSON: String = toJSON(true)
+
+  def getSeries(name: String): TimeSeries = series(name)
+  def getSeriesKeys: Iterable[String] = series.keys
+  def getDiagnostic(name: String): DiagnosticValue = diagnostics(name)
+  def getDiagnosticKeys: Iterable[String] = diagnostics.keys
 }

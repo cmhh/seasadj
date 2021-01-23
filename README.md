@@ -328,10 +328,29 @@ Finally, we can convert a JSON specifications object via the `/seasadj/spec/toSP
 ![](img/tospc01.png)
 
 
+## Programmatic Interface
 
-## Libary Overview
+As noted above, the intention of the library is to provide a seasonal adjustment service, but it is also possible to perform adjustments entirely programmatically.  By way of an example, let us consider again the Box and Jenkins airline data.  This is bundled with the library as a bespoke `TimeSeries` object as follows:
 
-Consider the following simple, but complete adjustment:
+```scala
+scala> import org.cmhh.seasadj.data._
+scala> println(airpassengers)
+       jan   feb   mar   apr   may   jun   jul   aug   sep   oct   nov   dec
+1949 112.0 118.0 132.0 129.0 121.0 135.0 148.0 148.0 136.0 119.0 104.0 118.0
+1950 115.0 126.0 141.0 135.0 125.0 149.0 170.0 170.0 158.0 133.0 114.0 140.0
+1951 145.0 150.0 178.0 163.0 172.0 178.0 199.0 199.0 184.0 162.0 146.0 166.0
+1952 171.0 180.0 193.0 181.0 183.0 218.0 230.0 242.0 209.0 191.0 172.0 194.0
+1953 196.0 196.0 236.0 235.0 229.0 243.0 264.0 272.0 237.0 211.0 180.0 201.0
+1954 204.0 188.0 235.0 227.0 234.0 264.0 302.0 293.0 259.0 229.0 203.0 229.0
+1955 242.0 233.0 267.0 269.0 270.0 315.0 364.0 347.0 312.0 274.0 237.0 278.0
+1956 284.0 277.0 317.0 313.0 318.0 374.0 413.0 405.0 355.0 306.0 271.0 306.0
+1957 315.0 301.0 356.0 348.0 355.0 422.0 465.0 467.0 404.0 347.0 305.0 336.0
+1958 340.0 318.0 362.0 348.0 363.0 435.0 491.0 505.0 404.0 359.0 310.0 337.0
+1959 360.0 342.0 406.0 396.0 420.0 472.0 548.0 559.0 463.0 407.0 362.0 405.0
+1960 417.0 391.0 419.0 461.0 472.0 535.0 622.0 606.0 508.0 461.0 390.0 432.0
+```
+
+The `airpassengers` object is of type `TimeSeries`, and has methods useful for working with seasonal adjustment specifications.  So consider the following complete specification:
 
 ```
 series{
@@ -344,6 +363,115 @@ series{
 x11{}
 ```
 
+We can emulate this in an entirely programmatically as follows:
+
+```scala
+val s: Specs = 
+  Map(
+    ("series" ->
+      Map(
+        ("title" -> SpecString("International Airline Passengers Data from Box and Jenkins")),
+        ("start" -> SpecDate(airpassengers.start)),
+        ("data" -> airpassengers.toSpecValue._1),
+        ("span" -> SpecSpan(Month(1952, 1)))
+      )
+    ),
+    ("x11" -> Map.empty)
+  )
+
+val ap: Specification = Specification("airpassengers", s)
+```
+
+And to confirm this is the same:
+
+```scala
+scala> println(ap)
+series {
+  title="International Airline Passengers Data from Box and Jenkins"
+  start=1949.01
+  data=(112.0, 118.0, 132.0, 129.0, 121.0, 135.0, 148.0, 148.0,
+        136.0, 119.0, 104.0, 118.0, 115.0, 126.0, 141.0, 135.0,
+        125.0, 149.0, 170.0, 170.0, 158.0, 133.0, 114.0, 140.0,
+        145.0, 150.0, 178.0, 163.0, 172.0, 178.0, 199.0, 199.0,
+        184.0, 162.0, 146.0, 166.0, 171.0, 180.0, 193.0, 181.0,
+        183.0, 218.0, 230.0, 242.0, 209.0, 191.0, 172.0, 194.0,
+        196.0, 196.0, 236.0, 235.0, 229.0, 243.0, 264.0, 272.0,
+        237.0, 211.0, 180.0, 201.0, 204.0, 188.0, 235.0, 227.0,
+        234.0, 264.0, 302.0, 293.0, 259.0, 229.0, 203.0, 229.0,
+        242.0, 233.0, 267.0, 269.0, 270.0, 315.0, 364.0, 347.0,
+        312.0, 274.0, 237.0, 278.0, 284.0, 277.0, 317.0, 313.0,
+        318.0, 374.0, 413.0, 405.0, 355.0, 306.0, 271.0, 306.0,
+        315.0, 301.0, 356.0, 348.0, 355.0, 422.0, 465.0, 467.0,
+        404.0, 347.0, 305.0, 336.0, 340.0, 318.0, 362.0, 348.0,
+        363.0, 435.0, 491.0, 505.0, 404.0, 359.0, 310.0, 337.0,
+        360.0, 342.0, 406.0, 396.0, 420.0, 472.0, 548.0, 559.0,
+        463.0, 407.0, 362.0, 405.0, 417.0, 391.0, 419.0, 461.0,
+        472.0, 535.0, 622.0, 606.0, 508.0, 461.0, 390.0, 432.0)
+  span=(1952.01, )
+}
+x11 {}
+```
+
+This way of constructing specifications can become cumbersome in practice, and other methods are possible.  For example, something like a builder pattern can be used as follows:
+
+```scala
+val ap = Specification("airpassengers")
+  .setParameter("International Airline Passengers Data from Box and Jenkins", "title", "series")
+  .setParameter(SpecDate(airpassengers.start), "start", "series")
+  .setParameter(airpassengers.toSpecValue._1, "data", "series")
+  .setParameter(SpecSpan(Month(1952, 1)), "span", "series")
+  .setSpec("x11")
+```
+
+As a further abstraction, there are also helpers for constructing the individual paramter values.  For example:
+
+```scala
+SpecSpan.fromString("(1952.01,)")
+```
+
+is equivalent to 
+
+```scala
+SpecSpan(Month(1952, 1))
+```
+
+Finally, we could also simply import a specification from a file on disk.  For example, assuming the airline spec was saved in a file called `testairline.spc`, we could simply run:
+
+```scala
+Specification.fromFile("airpassengers", "testairline.spc")
+```
+
+We can then adjust the series as follows:
+
+```scala
+val res: Try[Adjustment] = Adjustor.adjust(ap)
+```
+
+An `Adjustment` object consists of two maps: `series` containing all time series components, and `diagnostics` containing all diagnostic.  So, for example, to extract the seasonally adjusted series:
+
+```scala
+scala> res.foreach(r => println(r.getSeries("sa")))
+              jan          feb          mar          apr          may          jun          jul          aug          sep          oct          nov          dec
+1952 189.71862306 205.88663054 188.33591386 185.18381031 185.13710879  194.0928002 186.00221475 200.78816833 199.77670325 206.52351495 214.41305951 216.53237896
+1953 217.02638871 224.20326767 231.29157419 240.56192336 232.06735282 216.17151712  213.0113789 225.51255645 225.99039342 228.27247615 224.52470654 224.14226876
+1954 225.27958651 215.55651278 231.95529818  232.7733819 237.71554935 234.67954817 242.59977416 242.34666954 245.74990606 247.98174691 253.49564508 255.26827641
+1955 266.57256656  268.2249956 265.96254867 277.04739022 275.30168987 279.26957593 290.67754368 285.43865674 294.78907403 297.03270174 296.02582857 310.15416206
+1956 312.24799779 320.71091369 318.79036477 324.15166721 325.15367506 330.84011448 327.63385406 330.72791065 334.30304296 331.89143886 338.57390619 341.67731283
+1957 346.39091839 350.62463266  360.7856302 362.88630007 363.31905178 372.52846972 366.82150427 378.01099319 380.45708253 376.45574485 380.45667878 375.83427771
+1958 374.50163235 372.76865138 368.26176384 364.95494342 370.86425069 384.02500907 385.90964114 405.75742962 380.87474548 389.31826274 386.03289087 377.62521668
+1959  397.2029356 402.87928138 413.76007487 417.01936586 427.98342257 417.23129241  429.1544543 447.03373462 437.56168155  441.0179637 450.26440308 454.73815107
+1960 460.35663621 461.68770222 427.38516632 486.27214575 480.29775974 473.46410834  485.8861702 483.83595877 480.88358615 499.14910826 485.25454792 485.44338382
+```
+
+and to look at the f3.q measure (which is a summary of overally adjustment quality, a value under one denoting an acceptable adjustment):
+
+```scala
+scala> res.foreach(r => println(r.getDiagnostic("f3.q")))
+0.22
+```
+
+## Library Details
+
 Internally, the whole specification is modelled as a single class called `Specification`.  A `Specification` in turn is a data class consisting of a name and then nested maps containing the individual groups of paramaters.  In the case above, the name might be something like `airpassengers`, and the map member would contain the keys `series` and `x11`.  The value for `series` would be another map containing keys `title`, `start`, `data`, and `span`.  The value for `x11` would simply be an empty mapping.
 
 The values themselves are all descended from an abstract class called `SpecValue`.  For example, in `start=1949.01`, `1949.01` is imported with type `SpecDate`.  Similarly, the right-hand side of the `data` argument is imported with type `SpecNumArray`, and `span` is imported with type `SpecSpan`.  Only certain types are permitted for certain parameters, and there is _some_ checking of correctness when constructing a `Specification`.  The validation is probably a little clumsy in its design, and is not complete.
@@ -351,7 +479,7 @@ The values themselves are all descended from an abstract class called `SpecValue
 Multiple specifications can be collected together to enable batch adjustments.  This is modelled as a single class called `Specifications` containing a single member, `specifications`, which is just a sequence of objects of type `Specification`.
 
 
-## Mapping X13-ARIMA-SEATS Inputs
+### Mapping X13-ARIMA-SEATS Inputs
 
 Consider the case where we wish to adjust two series: male and female employment; as well as indirectly adjusting total employment by way of a 'composite' adjustment.  We denote the three series in short as `memp`, `femp`, and `emp`, respectively.  The relevant specifications are as follows:
 
@@ -466,51 +594,13 @@ For no other reason than JSON is seemingly near-universal in its use in web serv
 
 Here, we account for the metafile by including the series in the array in the same order.  We do not need the path information for the purpose of calling the service, though internally the service will handle this for us.  This will prove far more convenient in practice than the traditional setup&ndash;we have traded 4 files here for a single JSON file / string.  Actually, the rationalisation can be geater still.  It is not uncommon to provide the time series data for each series in separate files, and the path to the data as a parameter in the specification.  In this case, we would have had 6 input files (we do not need to provide data for composites).  In our case, we will require that the data always be present in the specification, and we forbid the use of separate files and paths.
 
-## Mapping X13-ARIMA-SEATS Outputs
+### Mapping X13-ARIMA-SEATS Outputs
 
 Internally, all adjustments are run with the `-g` flag, which means most tables are saved, as well as ensuring that diagnostics are written to an `xdg` or `udg` file.  Currently, the result of an adjustment is stored in a case class called `Adjustment` which has members `series` and `diagnostics`.  `series` is a collection containing all output that can be imported as a `TimeSeries` (irregular component, seasonally adjusted series, trend, etc.), while `diagnostics` is a hashmap containing all the measures found in the `xdg` or `udg` files&ndash;values are stored as numeric or integer scalars or arrays if possible, and strings otherwise.
 
-## Programmatic Examples
+## Additional Examples
 
-The library is intended to be used either programmatically, or indirectly via a web service.  In this section we demonstrate simple examples of programmatic use.
-
-### Importing a `spc` file
-
-Consider again the air passengers example above.  While it is possible to construct examples entirely programmatically, limited convenience methods are provided.  For example, that example can be imported as follows:
-
-```scala
-import org.cmhh.seasadj._
-val ap = Specification.fromFile("airpassengers", "testairline.spc").get
-```
-
-The `fromFile` method has a return-type of `Try[Specification]` meaning that it will return either `Success` or `Failure` as appropriate.  The call here is successful, and we append `.get` to retrieve the underlying value.  (This is for illustrative purposes only, and one would typically avoid the use of `get` in this way in practice).  The resulting object may or may not be directly adjustable, but if it is, one can adjust it as follows:
-
-```scala
-val res = Adjustor.adjust(ap).get
-```
-
-The `adjust` method will yield an object of `Try[Adjustment]`, again because adjustment might fail.  Assuming it is successful, the result will be an object of type `Adjustment`, which we extract using `get` which is, again, particularly bad form in practice.  Either way, a successful result contains the time series outputs collected into a list, and a hashmap of all the various diagnostics.  For example, to pull the overall quality measure:
-
-```
-scala> println(res.summary("f3.q"))
-0.16
-```
-
-Or to look at the final seasonally adjusted data:
-
-```
-scala> println(res.results("sa").map((x: Double) => math.round(x * 10.0) / 10.0))
-       jan   feb   mar   apr   may   jun   jul   aug   sep   oct   nov   dec
-1952 192.9 198.6 185.8 185.8 186.2 192.6 187.6 200.2 200.7 208.3 211.9 217.1
-1953 218.6 223.4 230.5 241.4 230.4 217.5 214.7 224.6 226.5 228.2 224.2 225.0
-1954 224.1 215.0 234.3 233.4 235.6 236.4 241.7 243.2 246.5 245.9 255.2 257.2
-1955 264.0 268.5 269.8 274.1 275.4 281.8 286.7 288.4 295.6 294.4 297.8 309.8
-1956 311.4 312.4 316.6 325.2 328.9 329.9 327.1 332.0 328.9 335.0 340.3 339.8
-1957 348.9 353.5 361.3 361.4 367.7 367.8 369.7 374.0 378.4 377.8 379.2 379.6
-1958 377.9 376.3 370.9 361.9 371.9 383.5 387.3 396.0 383.4 389.2 381.2 387.4
-1959 397.5 407.1 416.4 418.4 423.8 421.8 430.6 435.5 439.2 436.4 450.1 465.8
-1960 457.1 453.0 444.4 472.5 480.0 477.9 477.4 481.5 482.5 488.6 490.3 491.2
-```
+In this section, we include further examples of programmatic use in Scala.
 
 ### Importing a JSON file
 
@@ -543,56 +633,6 @@ java -cp seasadj.jar org.cmhh.seasadj.ImportInputs <input path> <output path>
 ```
 
 Files will be matched up with `file` parameters in `spc` files as closely as possible (i.e. even if the full path does not match exactly), and the `file` parameters will generally be replaced with `data` parameters.  Essentially all files below root are recursively listed, the best match for a file referred to in a spec is the file with the longest matching sequence of characters from the end working backwards.
-
-### Builder pattern
-
-As noted, we can emulate the airline example above completely programmatically.  Of course, you wouldn't generally enter all the observations in a time series by hand, but, nevertheless:
-
-```scala
-val ap = Specification("airpassengers")
-  .setParameter(
-    "International Airline Passengers Data from Box and Jenkins",
-    "title", "series"
-  )
-  .setParameter("1949.01", "start", "series")
-  .setParameter(
-    "(112.0, 118.0, 132.0, 129.0, 121.0, 135.0, 148.0, 148.0, ...)",
-    "data", "series"
-  )
-  .setParameter("(1952.01,)", "span", "series")
-  .setParameter("peaks", "savelog", "spectrum")
-  .setParameter("auto", "function", "transform")
-  .setParameter("autotransform", "savelog", "transform")
-  .setParameter("(td easter)", "aictest", "regression")
-  .setParameter("aictest", "savelog", "regression")
-  .setParameter("automodel", "savelog", "automdl")
-  .setSpec("outlier")
-  .setParameter("(d10 d11 d12)", "save", "x11")
-```
-
-In this case, we create an empty `Specification`, and then use a builder pattern to successively add to it.  Methods such as `setParameter` and `setSpec` are factory methods that result in a new `Specification`, however, rather than modifying an existing one.  For example, in the following, `s2` is a `Specification` which is the result of adding a title to `s1`, but `s1` itself remains empty:
-
-```scala
-val s1 = Specification("foo")
-val s2 = s1.setParameter("a title", "title", "series")
-```
-
-Parameters themselves are generally descended from the `SpecValue` abstract class.  The method `setParameter` will accept a string input and then construct the appropriate type as required.  For example, we set the value of `span` in the `series` spec above as follows:
-
-```scala
-ap.setParameter("(1952.01,)", "span", "series")
-```
-
-In this case, the string `(1952.01,)` is converted to an object of type `SpecSpan` before being added.  We could just as well have done this as follows:
-
-```scala
-ap.setParameter(
-  SpecSpan(Some(Month(1952,1)), None),
-  "span", "series"
-)
-```
-
-`SpecSpan` is a case class consisting of a `start` and `end`, each of which is of type `Option[Date]` (`Option` because either, but not both, could be set to `None`).  
 
 ### Adjustment templates
 
