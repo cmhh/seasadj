@@ -240,7 +240,7 @@ Note the date representation can be made more compact by adding a query paramete
 }
 ```
 
-Finally, we can omit series we are not interested in by adding a query paramter, `save`, which takes a comma separated list of series.  For example, to include onl the original (`ori`), trend (`trn`), and seasonally adjusted (`sa`) series, we'd add `/?save=ori,trn,sa`.  This reduces output size, but since each series must be read from a temporary file on the server, it also reduces the overall response time.  
+Finally, we can omit series we are not interested in by adding a query parameter, `save`, which takes a comma separated list of series.  For example, to include onl the original (`ori`), trend (`trn`), and seasonally adjusted (`sa`) series, we'd add `/?save=ori,trn,sa`.  This reduces output size, but since each series must be read from a temporary file on the server, it also reduces the overall response time.  
 
 ### Batch adjustment
 
