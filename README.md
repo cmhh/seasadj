@@ -447,7 +447,7 @@ We can then adjust the series as follows:
 val res: Try[Adjustment] = Adjustor.adjust(ap)
 ```
 
-An `Adjustment` object consists of two maps: `series` containing all time series components, and `diagnostics` containing all diagnostic.  So, for example, to extract the seasonally adjusted series:
+An `Adjustment` object consists of two maps: `series` containing all time series components, and `diagnostics` containing all diagnostic measures.  So, for example, to extract the seasonally adjusted series:
 
 ```scala
 scala> res.foreach(r => println(r.getSeries("sa")))
