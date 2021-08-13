@@ -1,0 +1,13 @@
+.bloop
+.bsp
+.idea
+.metals
+.vscode
+docs
+examples
+img
+project
+src
+target
+!target/scala-2.13/seasadj.jar
+**/.access^

@@ -1,6 +1,6 @@
 name := """seasadj"""
 organization := "org.cmhh"
-scalaVersion := "2.13.4"
+scalaVersion := "2.13.6"
 version := "0.2.0"
 scalacOptions += "-deprecation"
 

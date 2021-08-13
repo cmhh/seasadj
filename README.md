@@ -31,24 +31,17 @@ And, of course, X13-ARIMA-SEATS itself must be present, and in the search path. 
 
 On a Linux platform, it is relatively easy to build X13-ARIMA-SEATS from source, and a utility script, [buildx13.sh](buildx13.sh), is provided which will do this, storing the resulting binary in `${HOME}/.local/bin`.
 
-Alternatively, the service is easily containerised, and a simple example Dockerfile is included.  To build the container, ensure `seasadj.jar` is copied to the `docker` folder, and run:
+Alternatively, the service is easily containerised, and a simple example Dockerfile is included.  To build the container run:
 
 ```bash
-docker build -t seasadj docker
+docker-compose -f seasadj.yml build
 ```
 
-To run the service via Docker, simply run:
+N.b. this still assumes `sbt assembly` has been run, and `target/scala-2.13/seasadj.jar` exists.  There is an alternate Dockerfile, `docker/Dockerfile.alt` which will copy the source and compile as part of the build, but it will take a little while to build.  Either way, to run the service:
 
 ```bash
-docker run -td --rm --name seasadj -p 9001:9001 seasadj
+docker-compose -f seasadj.yml up -d
 ```
-
-As a further alternative still, a `Dockerfile` is also included in the root directory which can be also used to build a container which can be run in the same way as above.  This container differs in that the required jar file is built as part of the Docker build.  The build will take _much_ longer, but it is also easier for those without experience with sbt.  To build:
-
-```bash
-docker build -t seasadj .
-```
-
 
 ## Overview X13-ARIMA-SEATS
 
@@ -352,7 +345,7 @@ scala> println(airpassengers)
 
 The `airpassengers` object is of type `TimeSeries`, and has methods useful for working with seasonal adjustment specifications.  So consider the following complete specification:
 
-```
+```plaintext
 series{
   title="International Airline Passengers Data from Box and Jenkins"
   start=1949.01
@@ -467,6 +460,8 @@ and to look at the f3.q measure (which is a summary of overally adjustment quali
 
 ```scala
 scala> res.foreach(r => println(r.getDiagnostic("f3.q")))
+```
+```plaintext
 0.22
 ```
 
@@ -602,7 +597,7 @@ Internally, all adjustments are run with the `-g` flag, which means most tables 
 
 X13-ARIMA-SEATS specifications often refer to files on disk.  For example, assume the airline data was saved in a file called `airline.dat` as follows:
 
-```
+```plaintext
 1949 1 112
 1949 2 118
 1949 3 132
@@ -632,7 +627,7 @@ val ap2 = ap.resolveFiles("/foo/bar")
 
 Since specifications are immutable, this would leave `ap` unchanged, but return a new specification, `ap2`, with content:
 
-```
+```plaintext
 series {
   title="International Airline Passengers Data from Box and Jenkins"
   start=1949.01
