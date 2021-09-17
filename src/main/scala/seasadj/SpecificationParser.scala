@@ -18,7 +18,7 @@ object SpecificationParser {
   // anything that could be a specificaton or parameter name
   val name = "(?:[a-zA-Z]+[a-zA-Z0-9]*)"
   // anything permitted inside a spec value
-  val anytext = "(?:[a-zA-Z]+[a-zA-Z0-9\r\n\\(\\)\"\'\\.,=\\\\/ -]*)"
+  val anytext = "(?:[a-zA-Z]+[a-zA-Z0-9\r\n\\(\\)\"\'\\.,=\\\\/ -_]*)"
   // anything permitted on the rhs of a spec parameter
   val anyrhs = "(?:[a-zA-Z\\(]+[a-zA-Z0-9\r\n\\(\\)\"\'\\.,\\\\/ -]*)"
   // high-level match for entire spec, i.e. spec { specname}

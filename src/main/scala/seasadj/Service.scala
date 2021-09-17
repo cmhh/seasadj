@@ -59,7 +59,7 @@ object Service extends App with CORSHandler {
 
   object routes {
     val version = path("version") {
-      complete(HttpEntity(ContentTypes.`application/json`, "[\"0.2.0\"]"))
+      complete(HttpEntity(ContentTypes.`application/json`, "[\"0.2.1\"]"))
     }
 
     val validateSPC = path("validateSPC") {
