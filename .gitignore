@@ -10,8 +10,15 @@ target
 .vscode
 /RUNNING_PID
 examples
-!examples/airline
-!examples/hlfsemp
+!examples/airline/airline.json
+!examples/airline/airline.pretty.json
+!examples/airline/airline.spc
+!examples/hlfsemp/emp.json
+!examples/hlfsemp/emp.pretty.json
+!examples/hlfsemp/memp.spc
+!examples/hlfsemp/femp.spc
+!examples/hlfsemp/emp.spc
+!examples/hlfsemp/emp.mta
 fort.16
 **/.access^
 **/.attribute^
