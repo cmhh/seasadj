@@ -29,6 +29,8 @@ fort.16
 **/.attribute^
 **/*.jar
 *.json
+!examples/airline/*.json
+!examples/hlfsemp/*.json
 *attach*
 .Rproj.user
 *.Rproj
