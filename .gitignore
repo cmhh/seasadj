@@ -9,7 +9,7 @@ target
 .settings
 .vscode
 /RUNNING_PID
-examples
+examples/*
 !examples/airline/airline.json
 !examples/airline/airline.pretty.json
 !examples/airline/airline.spc
