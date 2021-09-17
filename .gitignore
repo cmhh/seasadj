@@ -9,8 +9,11 @@ target
 .settings
 .vscode
 /RUNNING_PID
-examples
+examples/*
+!examples/airline
+!examples/hlfsemp
 examples/airline/*
+examples/hlfsemp/*
 !examples/airline
 !examples/airline/airline.json
 !examples/airline/airline.pretty.json
