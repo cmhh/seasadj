@@ -176,7 +176,7 @@ curl \
   --compressed --output -
 ```
 
-The output will be relaively large, while still being quite readable.  For example, the above will yield output laid out as follows:
+The output will be relatively large, while still being quite readable.  For example, the above will yield output laid out as follows:
 
 ```json
 {
@@ -233,7 +233,7 @@ Note the date representation can be made more compact by adding a query paramete
 }
 ```
 
-Finally, we can omit series we are not interested in by adding a query parameter, `save`, which takes a comma separated list of series.  For example, to include onl the original (`ori`), trend (`trn`), and seasonally adjusted (`sa`) series, we'd add `/?save=ori,trn,sa`.  This reduces output size, but since each series must be read from a temporary file on the server, it also reduces the overall response time.  
+Finally, we can omit series we are not interested in by adding a query parameter, `save`, which takes a comma separated list of series.  For example, to include only the original (`ori`), trend (`trn`), and seasonally adjusted (`sa`) series, we'd add `/?save=ori,trn,sa`.  This reduces output size, but since each series must be read from a temporary file on the server, it also reduces the overall response time.  
 
 ### Batch adjustment
 
@@ -300,7 +300,7 @@ endpoint                     | function
 `/seasadj/spec/toJSON/:name` | Convert a SPC text string to a valid JSON specification.
 `/seasadj/spec/toSPC`        | Convert a JSON specification to JSON object with several SPC text strings.
 
-To test if the content of a SPC file is valid, we pass it to the `/seasadj/spec/validateSPC` endpoint.  A repsonse code of 200 should be returned with an appropriate message:
+To test if the content of a SPC file is valid, we pass it to the `/seasadj/spec/validateSPC` endpoint.  A response code of 200 should be returned with an appropriate message:
 
 ![](img/validatespc01.png)
 
@@ -314,7 +314,7 @@ We can convert the content of a single SPC file to JSON via the `/seasadj/spec/t
 
 ![](img/tojson01.png)
 
-In this case, failure will yield a status code of 422 (Unproccessable Entity) if the provided SPC appears invalid, and 500 (Internal Server Error) if the adjustment otherwise fails.  
+In this case, failure will yield a status code of 422 (Unprocessable Entity) if the provided SPC appears invalid, and 500 (Internal Server Error) if the adjustment otherwise fails.  
 
 Finally, we can convert a JSON specifications object via the `/seasadj/spec/toSPC` endpoint.  In this case the output will be a JSON object containing content appropriate for a SPC file for each individual specification found:
 
@@ -416,7 +416,7 @@ val ap = Specification("airpassengers")
   .setSpec("x11")
 ```
 
-As a further abstraction, there are also helpers for constructing the individual paramter values.  For example:
+As a further abstraction, there are also helpers for constructing the individual parameter values.  For example:
 
 ```scala
 SpecSpan.fromString("(1952.01,)")
@@ -456,7 +456,7 @@ scala> res.foreach(r => println(r.getSeries("sa")))
 1960 460.35663621 461.68770222 427.38516632 486.27214575 480.29775974 473.46410834  485.8861702 483.83595877 480.88358615 499.14910826 485.25454792 485.44338382
 ```
 
-and to look at the f3.q measure (which is a summary of overally adjustment quality, a value under one denoting an acceptable adjustment):
+and to look at the f3.q measure (which is a summary of overall adjustment quality, a value under one denoting an acceptable adjustment):
 
 ```scala
 scala> res.foreach(r => println(r.getDiagnostic("f3.q")))
@@ -467,7 +467,7 @@ scala> res.foreach(r => println(r.getDiagnostic("f3.q")))
 
 ## Library Details
 
-Internally, the whole specification is modelled as a single class called `Specification`.  A `Specification` in turn is a data class consisting of a name and then nested maps containing the individual groups of paramaters.  In the case above, the name might be something like `airpassengers`, and the map member would contain the keys `series` and `x11`.  The value for `series` would be another map containing keys `title`, `start`, `data`, and `span`.  The value for `x11` would simply be an empty mapping.
+Internally, the whole specification is modelled as a single class called `Specification`.  A `Specification` in turn is a data class consisting of a name and then nested maps containing the individual groups of parameters.  In the case above, the name might be something like `airpassengers`, and the map member would contain the keys `series` and `x11`.  The value for `series` would be another map containing keys `title`, `start`, `data`, and `span`.  The value for `x11` would simply be an empty mapping.
 
 The values themselves are all descended from an abstract class called `SpecValue`.  For example, in `start=1949.01`, `1949.01` is imported with type `SpecDate`.  Similarly, the right-hand side of the `data` argument is imported with type `SpecNumArray`, and `span` is imported with type `SpecSpan`.  Only certain types are permitted for certain parameters, and there is _some_ checking of correctness when constructing a `Specification`.  The validation is probably a little clumsy in its design, and is not complete.
 
@@ -587,7 +587,7 @@ For no other reason than JSON is seemingly near-universal in its use in web serv
 }
 ```
 
-Here, we account for the metafile by including the series in the array in the same order.  We do not need the path information for the purpose of calling the service, though internally the service will handle this for us.  This will prove far more convenient in practice than the traditional setup&ndash;we have traded 4 files here for a single JSON file / string.  Actually, the rationalisation can be geater still.  It is not uncommon to provide the time series data for each series in separate files, and the path to the data as a parameter in the specification.  In this case, we would have had 6 input files (we do not need to provide data for composites).  In our case, we will require that the data always be present in the specification, and we forbid the use of separate files and paths.
+Here, we account for the metafile by including the series in the array in the same order.  We do not need the path information for the purpose of calling the service, though internally the service will handle this for us.  This will prove far more convenient in practice than the traditional setup&ndash;we have traded 4 files here for a single JSON file / string.  Actually, the rationalisation can be greater still.  It is not uncommon to provide the time series data for each series in separate files, and the path to the data as a parameter in the specification.  In this case, we would have had 6 input files (we do not need to provide data for composites).  In our case, we will require that the data always be present in the specification, and we forbid the use of separate files and paths.
 
 ### Mapping X13-ARIMA-SEATS Outputs
 
@@ -617,7 +617,7 @@ series{
 x11{}
 ```
 
-As long as this path name is resolved correctly by the running program, this would work.  However, at least as far as a running webservice goes, we wish to shield users from such details, and we instead favour the approach where specifications are self-contained, with no reference to files on disk.  
+As long as this path name is resolved correctly by the running program, this would work.  However, at least as far as a running web service goes, we wish to shield users from such details, and we instead favour the approach where specifications are self-contained, with no reference to files on disk.  
 
 The library does provide facilities for 'correcting' such inputs.  Given a specification, we can use the `resolveFiles` method to replace all `file` parameters with `data` and `start` as appropriate.  So, assuming we have the spec above, and _somewhere_ inside the folder `/foo/bar` we have a file ending with `d/airline.dat`, then we could run:
 
@@ -676,11 +676,11 @@ val bar: Adjustments = Adjustor.adjust(foo).get
 
 ### Working folder (`spc` and `mta` files)
 
-A common way of working with X13-ARIMA-SEATS is to store a collection of time series and specifications in a single working directory, and run a batch adjustment using a `mta` file.  While it probably isn't practical to anticipate every possible setup, a simple utility is provided which will import the contents of a workding directory and output a single JSON file for each `mta` file contained therein, provided the following conditions are met:
+A common way of working with X13-ARIMA-SEATS is to store a collection of time series and specifications in a single working directory, and run a batch adjustment using a `mta` file.  While it probably isn't practical to anticipate every possible setup, a simple utility is provided which will import the contents of a working directory and output a single JSON file for each `mta` file contained therein, provided the following conditions are met:
 
 * there is one or more `mta` files in the root directory
 * there is one or more `spc` files in the root directory
-* all files referenced in the spc files are somewhere below the root directory.
+* all files referenced in the `spc` files are somewhere below the root directory.
 
 Given such a setup, one can then run:
 
