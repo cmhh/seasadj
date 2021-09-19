@@ -674,7 +674,7 @@ val foo: Specifications = Specifications.fromJSON("foo.json").get
 val bar: Adjustments = Adjustor.adjust(foo).get
 ```
 
-### Working folder (`spc` and `mta` files)
+### Importing a working folder (`spc` and `mta` files)
 
 A common way of working with X13-ARIMA-SEATS is to store a collection of time series and specifications in a single working directory, and run a batch adjustment using a `mta` file.  While it probably isn't practical to anticipate every possible setup, a simple utility is provided which will import the contents of a working directory and output a single JSON file for each `mta` file contained therein, provided the following conditions are met:
 
@@ -685,10 +685,167 @@ A common way of working with X13-ARIMA-SEATS is to store a collection of time se
 Given such a setup, one can then run:
 
 ```bash
-java -cp seasadj.jar org.cmhh.seasadj.ImportInputs <input path> <output path>
+java -cp seasadj.jar org.cmhh.seasadj.tools.ImportInputs <input path> <output path>
 ```
 
 Files will be matched up with `file` parameters in `spc` files as closely as possible (i.e. even if the full path does not match exactly), and the `file` parameters will generally be replaced with `data` parameters.  Essentially all files below root are recursively listed, the best match for a file referred to in a spec is the file with the longest matching sequence of characters from the end working backwards.
+
+As an example, the `examples/hlfsemp` folder contains the following:
+
+```plaintext
+examples/hlfsemp
+├── d
+│   ├── femp.dat
+│   └── memp.dat
+├── emp.mta
+├── emp.spc
+├── femp.spc
+└── memp.spc
+```
+
+`femp.spc` and `memp.spc` are both relatively simple, and each includes reference to an external file containing data.  For example, `femp.spc` is as follows:
+
+```plaintext
+series {
+  start=1986.1
+  period=4
+  title='femp'
+  file='d/femp.dat'
+  save=(b1)
+  format='datevalue'
+  comptype=add
+}
+ 
+x11 {
+  mode=mult
+  sigmalim=(1.8,2.8)
+  print=(default f3 qstat)
+  save=(c17 d8 d9 d10 d11 d12 d13)
+}
+```
+
+and `examples/hlfsemp/d/femp.dat` looks as follows (note the underlying library doesn't handle all possible date formats as yet):
+
+```plaintext
+1986 3 672.2
+1986 6 671.7
+1986 9 674.3
+1986 12 682.8
+...
+2019 12 1284.2
+2020 3 1287.6
+2020 6 1273
+2020 9 1263.3
+```
+
+`emp.spc` is a simple composite:
+
+```plaintext
+composite {
+  title='emp'
+}
+
+x11 {
+  mode=mult
+  sigmalim=(1.8,2.8)
+  print=(default f3 qstat)
+  save=(c17 d8 d9 d10 d11 d12 d13)
+}
+```
+
+and all three series can be adjusted using the provided `emp.mta` file:
+
+```plaintext
+memp o/memp
+femp o/femp
+emp o/emp
+```
+
+To import this complete setup, we run:
+
+```bash
+java -cp seasadj.jar org.cmhh.seasadj.tools.ImportInputs examples/hlfsemp examples/hlfsemp
+```
+
+We'll get one JSON file for each `mta` file.  In this case there is just `emp.mta`, so we get `emp.json`, output to `examples/hlfsemp`.  The file is not formatted, but formatted, the results are:
+
+```json
+{
+  "memp":{
+    "series":{
+      "data":[
+        953.8, 944.0, 936.2, 938.7, 946.1, 933.7, 931.1, 932.4, 915.8, 899.3, 879.3, 889.3, 879.3, 864.3, 858.9, 874.0, 869.6, 863.2, 856.6, 863.9, 852.6, 843.9, 832.4, 841.2, 845.7, 844.0, 835.1, 849.4, 854.0, 859.2, 856.7, 879.2, 881.9, 890.7, 896.2, 916.4, 929.6, 934.5, 936.7, 958.1, 957.7, 957.4, 959.4, 971.6, 967.8, 964.3, 960.7, 973.1, 966.6, 952.3, 944.0, 954.4, 958.7, 952.7, 955.9, 984.1, 979.3, 970.7, 976.6, 998.4, 997.4, 989.0, 998.8, 1019.2, 1036.2, 1027.8, 1027.3, 1048.0, 1050.2, 1045.5, 1055.9, 1072.2, 1081.2, 1088.0, 1091.2, 1121.3, 1114.6, 1106.5, 1118.8, 1141.1, 1139.8, 1141.8, 1139.5, 1161.1, 1158.5, 1155.4, 1157.5, 1170.3, 1150.3, 1154.4, 1145.2, 1172.5, 1141.5, 1142.6, 1116.1, 1137.2, 1139.5, 1133.4, 1145.3, 1150.8, 1155.7, 1149.2, 1151.4, 1161.6, 1162.1, 1148.8, 1135.7, 1141.5, 1157.0, 1156.8, 1169.4, 1198.5, 1208.1, 1213.4, 1212.6, 1242.5, 1254.6, 1253.8, 1240.0, 1270.7, 1283.8, 1311.7, 1323.9, 1348.9, 1370.0, 1359.5, 1378.5, 1399.9, 1404.5, 1401.2, 1406.8, 1410.0, 1418.0, 1414.3, 1421.3, 1442.4, 1457.8, 1446.6, 1437.3
+      ],
+      "period":4,
+      "title":"memp",
+      "comptype":"add",
+      "start":1986.01,
+      "save":[
+        "b1"
+      ]
+    },
+    "x11":{
+      "mode":"mult",
+      "sigmalim":[
+        1.8,
+        2.8
+      ],
+      "save":[
+        "c17", "d8", "d9", "d10", "d11", "d12", "d13"
+      ],
+      "print":[
+        "default", "f3", "qstat"
+      ]
+    }
+  },
+  "femp":{
+    "series":{
+      "data":[
+        672.2, 671.7, 674.3, 682.8, 683.2, 685.5, 685.4, 697.6, 682.9, 676.9, 667.7, 675.5, 655.5, 648.9, 650.8, 662.4, 664.2, 677.5, 669.2, 674.4, 666.6, 667.6, 663.4, 668.9, 662.7, 672.6, 666.9, 679.1, 671.5, 674.5, 686.9, 697.0, 699.8, 707.2, 716.2, 736.7, 732.1, 741.0, 750.8, 762.2, 764.6, 777.8, 787.4, 784.4, 778.0, 783.1, 784.1, 789.4, 779.9, 777.5, 786.6, 792.5, 795.6, 796.6, 802.6, 816.5, 807.5, 802.8, 822.6, 838.4, 829.7, 840.6, 839.3, 864.8, 859.3, 865.0, 868.5, 886.1, 878.2, 885.6, 907.2, 918.4, 910.8, 906.7, 931.2, 960.8, 947.2, 953.9, 969.9, 977.3, 979.8, 988.6, 984.1, 991.0, 999.3, 1005.1, 997.0, 1027.7, 995.5, 1017.4, 1024.2, 1039.0, 1013.8, 1005.7, 1007.4, 1015.4, 1007.4, 1007.4, 1008.7, 1022.5, 1026.1, 1028.7, 1024.0, 1042.4, 1034.4, 1037.1, 1035.1, 1025.0, 1042.3, 1040.8, 1055.2, 1074.2, 1079.4, 1070.4, 1087.9, 1119.1, 1116.0, 1105.8, 1102.4, 1131.1, 1140.1, 1160.0, 1166.2, 1196.0, 1196.5, 1189.1, 1215.1, 1237.1, 1237.5, 1240.9, 1259.0, 1249.4, 1262.2, 1265.9, 1272.2, 1284.2, 1287.6, 1273.0, 1263.3
+      ],
+      "period":4,
+      "title":"femp",
+      "comptype":"add",
+      "start":1986.01,
+      "save":[
+        "b1"
+      ]
+    },
+    "x11":{
+      "mode":"mult",
+      "sigmalim":[
+        1.8, 2.8
+      ],
+      "print":[
+        "default", "f3", "qstat"
+      ],
+      "save":[
+        "c17", "d8", "d9", "d10", "d11", "d12", "d13"
+      ]
+    }
+  },
+  "emp":{
+    "composite":{
+      "title":"'emp'"
+    },
+    "x11":{
+      "mode":"mult",
+      "sigmalim":[
+        1.8,
+        2.8
+      ],
+      "print":[
+        "default",
+        "f3",
+        "qstat"
+      ],
+      "save":[
+        "c17", "d8", "d9", "d10", "d11", "d12", "d13"
+      ]
+    }
+  }
+}
+```
 
 ### Adjustment templates
 

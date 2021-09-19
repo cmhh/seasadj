@@ -24,6 +24,9 @@ examples/hlfsemp/*
 !examples/hlfsemp/femp.spc
 !examples/hlfsemp/emp.spc
 !examples/hlfsemp/emp.mta
+examples/hlfsemp/d/*
+!examples/hlfsemp/d/memp.dat
+!examples/hlfsemp/d/femp.dat
 fort.16
 **/.access^
 **/.attribute^
