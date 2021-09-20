@@ -1,7 +1,7 @@
 name := """seasadj"""
 organization := "org.cmhh"
 scalaVersion := "2.13.6"
-version := "0.2.1"
+version := "0.2.2"
 scalacOptions += "-deprecation"
 
 libraryDependencies += "com.lihaoyi" %% "upickle" % "0.9.5"

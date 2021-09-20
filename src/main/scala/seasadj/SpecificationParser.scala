@@ -111,14 +111,17 @@ object SpecificationParser {
     */
   def parseArgs(str: String): Try[Map[String, String]] = Try {
     // when '(' is detected, find the remaining sequence up to ')'
-    def complete(s: String, numLeft: Int, numRight: Int, accum: String): (String, String) = {
-      if (s == "") throw new IllegalArgumentException(s"""Invalid specification value: "${str}".""")
-      else if (s.take(1) == "(") complete(s.drop(1), numLeft + 1, numRight, accum + s.take(1))
-      else if (s.take(1) == ")") {
-        if (numLeft == (numRight + 1)) (s.drop(1).trim, accum + ")")
-        else complete(s.drop(1), numLeft, numRight + 1, accum + ")")
-      }
-      else complete(s.drop(1), numLeft, numRight, accum + s.take(1))
+    // handle the case: (p d q)(P D Q)
+    def complete(s: String, accum: String): (String, String) = {
+      val h = s.take(1)
+      val t = s.tail
+      if (h == "(") { 
+        val pos = t.indexOf(")")
+        val add = t.take(pos + 1)
+        val res = t.drop(pos + 1).trim
+        if (res.size > 0 & res.take(1) == "(") complete(res, accum + "(" + add)
+        else (res, accum + "(" + add)
+      } else (s, "")
     }
 
     def parse(
@@ -130,7 +133,7 @@ object SpecificationParser {
         val left = s.take(i).trim
         val right = s.drop(i + 1).trim
         if (right.take(1) == "(") {
-          val (rest, value) = complete(right, 0, 0, "")
+          val (rest, value) = complete(right, "")
           parse(rest, accum :+ (left, StringUtils.unquote(value)))
         } else {
           val j = right.indexOf("\n")
@@ -157,9 +160,9 @@ object SpecificationParser {
             parseArgs(spec._2) match {
               case Success(params) => 
                 (
-                  spec._1 ->
-                  params.map(param => Validator.specValue(spec._1, param._1, param._2) match {
-                    case Success(s) => (param._1 -> s)
+                  spec._1.toLowerCase ->
+                  params.map(param => Validator.specValue(spec._1.toLowerCase, param._1.toLowerCase, param._2) match {
+                    case Success(s) => (param._1.toLowerCase -> s)
                     case Failure(e) => throw e
                   })
                 )
