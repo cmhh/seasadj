@@ -6,5 +6,5 @@ services:
       context: ./
       dockerfile: docker/Dockerfile
     ports:
-      - 9001:9001
+      - 9002:9001
     tty: true
